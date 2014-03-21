@@ -1,4 +1,4 @@
-moedb
+NekoDB
 =====
 
 a distributed time series database
@@ -7,7 +7,7 @@ LICENSE
 ======
 
 ```
-MoeDB: Distributed Time Series Database for Internet of Things
+NekoDB: Distributed Time Series Database for Internet of Things
 Copyright (C) 2014 Justin Wong
 
 This program is free software: you can redistribute it and/or modify
