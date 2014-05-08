@@ -1,4 +1,4 @@
-package mmh3
+package nekolib
 
 import (
     "bytes"

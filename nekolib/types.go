@@ -15,20 +15,40 @@
  * Copyright (C) Justin Wong, 2014
  */
 
-package db
 
+package nekolib
 
-type BackendServerCfg struct {
-    Addr string
-    Port int
+// import (
+//     "github.com/bigeagle/nekodb/nekod/backend"
+// )
 
-    RustServers []string
+const (
+    OP_FIND uint8 = iota
+    OP_INSERT
+    OP_DELETE
+
+    OP_NEW_SERIES
+    OP_DELETE_SERIES
+    OP_SERIES_INFO
+)
+
+type NekodMsgHeader struct {
+    Opcode uint8
 }
 
-
-type NekoBackendServer struct {
-    cfg BackendServerCfg
-
+type NekoStrPack struct {
+    Len uint16
+    Bytes []byte
 }
 
+type NekodRecord struct {
+    Tsec uint32
+    Tmilli uint16
+    DLen uint16
+    Value []byte
+}
 
+type NekodSeriesInfo struct {
+    Name NekoStrPack
+    Count uint64
+}

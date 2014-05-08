@@ -15,27 +15,4 @@
  * Copyright (C) Justin Wong, 2014
  */
 
-package db
-
-import "time"
-
-type NekoBackendOptions struct {
-    BlkSize int
-}
-
-type NekoBackend interface {
-    GetSeriesFrag(id string) NekoSeriesFrag
-    NewSeriesFrag(id string, options NekoBackendOptions) error
-}
-
-
-type NekoSeriesFrag interface {
-    Id() string
-    // GetMatch(RecordFilter) []NekoRecord;
-    GetByRange(start, end time.Time, to chan<- NekoRecord)
-    Insert(records []NekoRecord) error
-    DeleteByRange(start, end time.Time) error
-    // DeleteMatch(RecordFilter) error
-    Count() uint64
-}
-
+ package main

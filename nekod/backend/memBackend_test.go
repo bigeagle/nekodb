@@ -15,7 +15,7 @@
  * Copyright (C) Justin Wong, 2014
  */
 
-package db
+package backend
 
 import (
 //    "fmt"

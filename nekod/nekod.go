@@ -15,19 +15,20 @@
  * Copyright (C) Justin Wong, 2014
  */
 
-package db
+package main
 
-import (
-    "time"
-    "errors"
-)
 
-var NoMatchRecord = errors.New("No Record Matched");
+type BackendServerCfg struct {
+    Addr string
+    Port int
 
-type NekoRecord struct {
-    ts time.Time
-    value interface{}
+    EtcdServers []string
 }
 
-type RecordFilter func(r NekoRecord) bool
+
+type NekoBackendServer struct {
+    cfg BackendServerCfg
+
+}
+
 
