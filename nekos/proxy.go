@@ -19,11 +19,49 @@ package main
 
 import (
 //     "github.com/bigeagle/nekodb/nekolib"
-//     zmq "github.com/pebbe/zmq4"
+     "fmt"
+     zmq "github.com/pebbe/zmq4"
 )
 
 
-type Nekos struct {
+type nekoServer struct {
+    cfg *nekosConfig
+}
 
+func startNekoServer(cfg_filename string) (error) {
+    cfg, err := parseConfig(cfg_filename)
+
+    if err != nil {
+        return err
+    }
+
+    srv := new(nekoServer)
+    srv.cfg = cfg
+    srv.init()
+    srv.serveForever()
+    return nil
+}
+
+func (s *nekoServer) init() {
 
 }
+
+
+func (s *nekoServer) serveForever() {
+    clients, _ := zmq.NewSocket(zmq.ROUTER)
+    defer clients.Close()
+    clients.Bind(fmt.Sprintf("tcp://%s:%d", s.cfg.Addr, s.cfg.Port))
+
+    workers, _ := zmq.NewSocket(zmq.DEALER)
+    defer workers.Close()
+    workers.Bind(workerAddr)
+
+    for i :=0; i < s.cfg.MaxWorkers; i++ {
+        go startWorker(s)
+    }
+
+    err := zmq.Proxy(clients, workers, nil)
+    logger.Fatalf("Proxy Exited: %s", err.Error())
+
+}
+

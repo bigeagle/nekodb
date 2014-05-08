@@ -15,34 +15,35 @@
  * Copyright (C) Justin Wong, 2014
  */
 
-package main
-
+package nekolib
 
 import (
-    "flag"
-    "os"
-    "github.com/bigeagle/nekodb/nekolib"
-    gologging "github.com/bigeagle/go-logging"
+    zmq "github.com/pebbe/zmq4"
 )
 
-var (
-    debug, getVersion bool
-    cfgFile string
-    logger *gologging.Logger
-)
+type ReqPool struct {
+    Size int
+    Pool chan *zmq.Socket
+}
 
-func main() {
-    flag.BoolVar(&debug, "debug", false, "Debug Info")
-    flag.BoolVar(&getVersion, "version", false, "Print Version")
-    flag.StringVar(&cfgFile, "config", "/etc/nekodb/nekos.conf", "Configuration File Path")
-    flag.Parse()
+func NewRequstPool(target string, size int) *ReqPool {
+    pool := new(ReqPool)
+    pool.Size = size
+    pool.Pool = make(chan *zmq.Socket, size)
 
-    if getVersion {
-        nekolib.PrintVersion()
-        os.Exit(0)
+    for i := 0; i < size; i++ {
+        sock, _ := zmq.NewSocket(zmq.REQ)
+        sock.Connect(target)
+        pool.Pool <- sock
     }
-    nekolib.InitLogger(debug)
-    logger = nekolib.GetLogger()
 
-    logger.Info("Started Nekodb Backend")
+    return pool
+}
+
+func (p *ReqPool) Get() *zmq.Socket {
+    return <- p.Pool
+}
+
+func (p *ReqPool) Return(s *zmq.Socket) {
+    p.Pool <- s
 }

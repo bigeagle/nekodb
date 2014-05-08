@@ -17,32 +17,25 @@
 
 package main
 
-
 import (
-    "flag"
-    "os"
-    "github.com/bigeagle/nekodb/nekolib"
-    gologging "github.com/bigeagle/go-logging"
+    "code.google.com/p/gcfg"
 )
 
-var (
-    debug, getVersion bool
-    cfgFile string
-    logger *gologging.Logger
-)
-
-func main() {
-    flag.BoolVar(&debug, "debug", false, "Debug Info")
-    flag.BoolVar(&getVersion, "version", false, "Print Version")
-    flag.StringVar(&cfgFile, "config", "/etc/nekodb/nekos.conf", "Configuration File Path")
-    flag.Parse()
-
-    if getVersion {
-        nekolib.PrintVersion()
-        os.Exit(0)
-    }
-    nekolib.InitLogger(debug)
-    logger = nekolib.GetLogger()
-
-    logger.Info("Started Nekodb Backend")
+type nekosConfig struct {
+    Addr string
+    Port int
+    MaxWorkers int
+    BackendPeer []string
+    EtcdPeer []string
 }
+
+func parseConfig(filename string) (*nekosConfig, error) {
+    cfg := new(nekosConfig)
+    err := gcfg.ReadFileInto(cfg, filename)
+    if err != nil {
+        logger.Error(err.Error())
+    }
+    return cfg, err
+}
+
+
