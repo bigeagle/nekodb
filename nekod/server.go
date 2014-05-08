@@ -17,4 +17,21 @@
 
 package main
 
+import (
+//    zmq "github.com/pebbe/zmq4"
+//    "github.com/coreos/go-etcd/etcd"
+)
+
+type BackendServerCfg struct {
+    Addr string
+    Port int
+    Name string
+    Virtuals int
+    EtcdServers []string
+}
+
+type NekoBackendServer struct {
+    cfg BackendServerCfg
+}
+
 

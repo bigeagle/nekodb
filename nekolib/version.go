@@ -15,6 +15,13 @@
  * Copyright (C) Justin Wong, 2014
  */
 
-package main
+package nekolib
 
+import "fmt"
 
+var VERSION = "0.0.1"
+
+func PrintVersion() {
+    fmt.Println("Nekodb: Distributed Time Series Database")
+    fmt.Printf("Version: %s\n", VERSION)
+}

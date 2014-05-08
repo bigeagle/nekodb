@@ -15,4 +15,33 @@
  * Copyright (C) Justin Wong, 2014
  */
 
- package main
+package main
+
+import (
+    "flag"
+    "os"
+    "github.com/bigeagle/nekodb/nekolib"
+    gologging "github.com/bigeagle/go-logging"
+)
+
+var (
+    debug, getVersion bool
+    cfgFile string
+    logger *gologging.Logger
+)
+
+func main() {
+    flag.BoolVar(&debug, "debug", false, "Debug Info")
+    flag.BoolVar(&getVersion, "version", false, "Print Version")
+    flag.StringVar(&cfgFile, "config", "/etc/nekodb/nekos.conf", "Configuration File Path")
+    flag.Parse()
+
+    if getVersion {
+        nekolib.PrintVersion()
+        os.Exit(0)
+    }
+    nekolib.InitLogger(debug)
+    logger = nekolib.GetLogger()
+
+    logger.Info("Started Nekos Proxy")
+}

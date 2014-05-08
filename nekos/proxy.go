@@ -17,4 +17,13 @@
 
 package main
 
+import (
+//     "github.com/bigeagle/nekodb/nekolib"
+//     zmq "github.com/pebbe/zmq4"
+)
 
+
+type Nekos struct {
+
+
+}
