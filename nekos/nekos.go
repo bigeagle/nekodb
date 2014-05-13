@@ -43,5 +43,7 @@ func main() {
     nekolib.InitLogger(debug)
     logger = nekolib.GetLogger()
 
-    logger.Info("Started Nekos Proxy")
+    logger.Info("Starting Nekos Proxy")
+    startNekoServer(cfgFile)
+
 }

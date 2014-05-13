@@ -18,20 +18,49 @@
 package main
 
 import (
-//    zmq "github.com/pebbe/zmq4"
+    "fmt"
+    zmq "github.com/pebbe/zmq4"
 //    "github.com/coreos/go-etcd/etcd"
 )
 
-type BackendServerCfg struct {
-    Addr string
-    Port int
-    Name string
-    Virtuals int
-    EtcdServers []string
+type nekoBackendServer struct {
+    cfg *backendServerCfg
 }
 
-type NekoBackendServer struct {
-    cfg BackendServerCfg
+func startNekoBackendServer(cfg_filename string) (error) {
+    cfg, err := parseConfig(cfg_filename)
+    if err != nil {
+        logger.Error(err.Error())
+        return err
+    }
+
+    srv := new(nekoBackendServer)
+    srv.cfg = cfg
+    srv.init()
+    srv.serveForever()
+    return nil
 }
 
+func (s *nekoBackendServer) init() {
+
+}
+
+
+func (s *nekoBackendServer) serveForever() {
+    clients, _ := zmq.NewSocket(zmq.ROUTER)
+    defer clients.Close()
+    clients.Bind(fmt.Sprintf("tcp://%s:%d", s.cfg.Addr, s.cfg.Port))
+
+    workers, _ := zmq.NewSocket(zmq.DEALER)
+    defer workers.Close()
+    workers.Bind(workerAddr)
+
+    for i :=0; i < s.cfg.MaxWorkers; i++ {
+        go startWorker(s)
+    }
+
+    err := zmq.Proxy(clients, workers, nil)
+    logger.Fatalf("Proxy Exited: %s", err.Error())
+
+}
 

@@ -12,25 +12,24 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright (C) Justin Wong, 2014
+ * Copyright (C) Justin, 2014
  */
-
 package main
 
-import (
-    "github.com/BurntSushi/toml"
-)
+import "github.com/BurntSushi/toml"
 
-type nekosConfig struct {
-    Addr string             `toml:"addr"`
-    Port int                `toml:"port"`
-    MaxWorkers int          `toml:"max_workers"`
-    BackendPeers []string   `toml:"backend_peers"`
-    EtcdPeers []string      `toml:"etcd_peers"`
+type backendServerCfg struct {
+    Addr string        `toml:"addr"`
+    Port int           `toml:"port"`
+    MaxWorkers int     `toml:"max_workers"`
+    Name string        `toml:"name"`
+    Virtuals int       `toml:"virtuals"`
+    EtcdPeers []string `toml:"etcd_peers"`
 }
 
-func parseConfig(filename string) (*nekosConfig, error) {
-    cfg := new(nekosConfig)
+
+func parseConfig(filename string) (*backendServerCfg, error) {
+    cfg := new(backendServerCfg)
     if _, err := toml.DecodeFile(filename, cfg); err != nil {
         logger.Error(err.Error())
         return nil, err

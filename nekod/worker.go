@@ -17,33 +17,18 @@
 
 package main
 
+const workerAddr = "inproc://workers"
 
-import (
-    "flag"
-    "os"
-    "github.com/bigeagle/nekodb/nekolib"
-    gologging "github.com/bigeagle/go-logging"
-)
+type nekodWorker struct {
+    srv *nekoBackendServer
+}
 
-var (
-    debug, getVersion bool
-    cfgFile string
-    logger *gologging.Logger
-)
+func (w *nekodWorker) serveForever() {
 
-func main() {
-    flag.BoolVar(&debug, "debug", false, "Debug Info")
-    flag.BoolVar(&getVersion, "version", false, "Print Version")
-    flag.StringVar(&cfgFile, "config", "/etc/nekodb/nekod.conf", "Configuration File Path")
-    flag.Parse()
+}
 
-    if getVersion {
-        nekolib.PrintVersion()
-        os.Exit(0)
-    }
-    nekolib.InitLogger(debug)
-    logger = nekolib.GetLogger()
-
-    logger.Info("Starting Nekodb Backend")
-    startNekoBackendServer(cfgFile)
+func startWorker(s *nekoBackendServer) {
+    w := new(nekodWorker)
+    w.srv = s
+    w.serveForever()
 }
