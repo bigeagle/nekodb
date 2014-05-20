@@ -20,21 +20,25 @@ package main
 import (
     "flag"
     "os"
+    "io/ioutil"
     "github.com/bigeagle/nekodb/nekolib"
     gologging "github.com/bigeagle/go-logging"
 )
 
 var (
-    debug, getVersion bool
-    cfgFile string
     logger *gologging.Logger
 )
 
 func main() {
-    flag.BoolVar(&debug, "debug", false, "Debug Info")
-    flag.BoolVar(&getVersion, "version", false, "Print Version")
-    flag.StringVar(&cfgFile, "config", "/etc/nekodb/nekos.conf", "Configuration File Path")
-    flag.Parse()
+    var debug, getVersion bool
+    var cfgFile string
+
+    f := flag.NewFlagSet("nekos", -1)
+    f.SetOutput(ioutil.Discard)
+    f.BoolVar(&debug, "debug", false, "Debug Info")
+    f.BoolVar(&getVersion, "version", false, "Print Version")
+    f.StringVar(&cfgFile, "config", "", "Configuration File Path")
+    f.Parse(os.Args[1:])
 
     if getVersion {
         nekolib.PrintVersion()
@@ -43,7 +47,12 @@ func main() {
     nekolib.InitLogger(debug)
     logger = nekolib.GetLogger()
 
+    cfg, err := loadConfig(cfgFile, os.Args[1:])
+    if err != nil {
+        return
+    }
+
     logger.Info("Starting Nekos Proxy")
-    startNekoServer(cfgFile)
+    startNekoServer(cfg)
 
 }

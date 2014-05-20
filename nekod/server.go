@@ -27,13 +27,7 @@ type nekoBackendServer struct {
     cfg *backendServerCfg
 }
 
-func startNekoBackendServer(cfg_filename string) (error) {
-    cfg, err := parseConfig(cfg_filename)
-    if err != nil {
-        logger.Error(err.Error())
-        return err
-    }
-
+func startNekoBackendServer(cfg *backendServerCfg) (error) {
     srv := new(nekoBackendServer)
     srv.cfg = cfg
     srv.init()

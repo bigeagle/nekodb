@@ -19,31 +19,42 @@ package main
 
 
 import (
-    "flag"
     "os"
+    "flag"
+    "io/ioutil"
     "github.com/bigeagle/nekodb/nekolib"
     gologging "github.com/bigeagle/go-logging"
 )
 
 var (
-    debug, getVersion bool
-    cfgFile string
     logger *gologging.Logger
 )
 
 func main() {
-    flag.BoolVar(&debug, "debug", false, "Debug Info")
-    flag.BoolVar(&getVersion, "version", false, "Print Version")
-    flag.StringVar(&cfgFile, "config", "/etc/nekodb/nekod.conf", "Configuration File Path")
-    flag.Parse()
+    var cfgFile string
+    var showVersion, debug bool
 
-    if getVersion {
+    f := flag.NewFlagSet("nekod", -1)
+    f.SetOutput(ioutil.Discard)
+    f.BoolVar(&showVersion, "version", false, "Print Version")
+    f.StringVar(&cfgFile, "config", "", "Configuration File Path")
+    f.BoolVar(&debug, "debug", false, "Debug Mode")
+    f.Parse(os.Args[1:])
+
+    if showVersion {
         nekolib.PrintVersion()
         os.Exit(0)
     }
+
     nekolib.InitLogger(debug)
     logger = nekolib.GetLogger()
 
+
+    cfg, err := loadConfig(cfgFile, os.Args[1:])
+    if err != nil {
+        return
+    }
+
     logger.Info("Starting Nekodb Backend")
-    startNekoBackendServer(cfgFile)
+    startNekoBackendServer(cfg)
 }

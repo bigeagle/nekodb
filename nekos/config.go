@@ -18,6 +18,8 @@
 package main
 
 import (
+    "flag"
+    "strings"
     "github.com/BurntSushi/toml"
 )
 
@@ -27,15 +29,55 @@ type nekosConfig struct {
     MaxWorkers int          `toml:"max_workers"`
     BackendPeers []string   `toml:"backend_peers"`
     EtcdPeers []string      `toml:"etcd_peers"`
+    Debug bool              `toml:"debug"`
 }
 
-func parseConfig(filename string) (*nekosConfig, error) {
+
+func loadConfig(cfgFile string, arguments []string) (*nekosConfig, error) {
+    var etcdPeers, backendPeers string
+    var showVersion bool
+
     cfg := new(nekosConfig)
-    if _, err := toml.DecodeFile(filename, cfg); err != nil {
-        logger.Error(err.Error())
+
+    cfg.Addr = "127.0.0.1"
+    cfg.Port = 2345
+    cfg.EtcdPeers = []string{}
+    cfg.BackendPeers = []string{}
+    cfg.Debug = false
+
+    if cfgFile != "" {
+        if _, err := toml.DecodeFile(cfgFile, cfg); err != nil {
+            logger.Error(err.Error())
+            return nil, err
+        }
+    }
+
+    f := flag.NewFlagSet("nekos", flag.ContinueOnError)
+
+    f.StringVar(&cfg.Addr, "addr", cfg.Addr, "Bind Addr")
+    f.IntVar(&cfg.Port, "port", cfg.Port, "Bind Port")
+    f.IntVar(&cfg.MaxWorkers, "max-workers", cfg.MaxWorkers, "Max worker threads")
+    f.StringVar(&etcdPeers, "etcd-peers", "", "Etcd peers")
+    f.StringVar(&backendPeers, "backend-peers", "", "Etcd peers")
+    f.BoolVar(&cfg.Debug, "debug", cfg.Debug, "Debug Mode")
+
+    // Begin Ignored  (for usage message)
+    f.BoolVar(&showVersion, "version", false, "Print Version")
+    f.StringVar(&cfgFile, "config", "", "Configuration File Path")
+    // End Ignored
+
+    if err := f.Parse(arguments); err != nil {
         return nil, err
     } else {
+        if etcdPeers != "" {
+            cfg.EtcdPeers = strings.Split(etcdPeers, ",")
+        }
+        if backendPeers != "" {
+            cfg.BackendPeers = strings.Split(backendPeers, ",")
+        }
+
         logger.Debug("%v", cfg)
         return cfg, nil
     }
+
 }

@@ -28,13 +28,7 @@ type nekoServer struct {
     cfg *nekosConfig
 }
 
-func startNekoServer(cfg_filename string) (error) {
-    cfg, err := parseConfig(cfg_filename)
-
-    if err != nil {
-        return err
-    }
-
+func startNekoServer(cfg *nekosConfig) (error) {
     srv := new(nekoServer)
     srv.cfg = cfg
     srv.init()

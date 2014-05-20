@@ -16,25 +16,69 @@
  */
 package main
 
-import "github.com/BurntSushi/toml"
+import (
+    "flag"
+    "strings"
+    "github.com/BurntSushi/toml"
+)
 
 type backendServerCfg struct {
     Addr string        `toml:"addr"`
     Port int           `toml:"port"`
     MaxWorkers int     `toml:"max_workers"`
     Name string        `toml:"name"`
+    Hostname string    `toml: "hostname"`
     Virtuals int       `toml:"virtuals"`
     EtcdPeers []string `toml:"etcd_peers"`
+    Debug bool         `toml:"debug"`
 }
 
 
-func parseConfig(filename string) (*backendServerCfg, error) {
+func loadConfig(cfgFile string, arguments []string) (*backendServerCfg, error) {
+    var etcdPeers string
+    var showVersion bool
     cfg := new(backendServerCfg)
-    if _, err := toml.DecodeFile(filename, cfg); err != nil {
-        logger.Error(err.Error())
+
+    cfg.Addr = "127.0.0.1"
+    cfg.Port = 1234
+    cfg.MaxWorkers = 4
+    cfg.Name = "nekod"
+    cfg.Hostname = "localhost"
+    cfg.Virtuals = 1
+    cfg.EtcdPeers = []string{}
+    cfg.Debug = false
+
+    if cfgFile != "" {
+        if _, err := toml.DecodeFile(cfgFile, cfg); err != nil {
+            logger.Error(err.Error())
+            return nil, err
+        }
+    }
+
+    f := flag.NewFlagSet("nekod", flag.ContinueOnError)
+
+    f.StringVar(&cfg.Addr, "addr", cfg.Addr, "Bind Addr")
+    f.IntVar(&cfg.Port, "port", cfg.Port, "Bind Port")
+    f.IntVar(&cfg.MaxWorkers, "max-workers", cfg.MaxWorkers, "Max worker threads")
+    f.StringVar(&cfg.Name, "name", cfg.Name, "Peer Name")
+    f.IntVar(&cfg.Virtuals, "virtuals", cfg.Virtuals, "Number of virtual nodes")
+    f.StringVar(&etcdPeers, "etcd-peers", "", "Etcd peers")
+    f.BoolVar(&cfg.Debug, "debug", cfg.Debug, "Debug Mode")
+
+    // Begin Ignored  (for usage message)
+    f.BoolVar(&showVersion, "version", false, "Print Version")
+    f.StringVar(&cfgFile, "config", "", "Configuration File Path")
+    // End Ignored
+
+    if err := f.Parse(arguments); err != nil {
         return nil, err
     } else {
+        if etcdPeers != "" {
+            cfg.EtcdPeers = strings.Split(etcdPeers, ",")
+        }
+
         logger.Debug("%v", cfg)
         return cfg, nil
     }
+
 }
