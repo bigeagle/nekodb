@@ -41,8 +41,6 @@ func loadConfig(cfgFile string, arguments []string) (*nekosConfig, error) {
 
     cfg.Addr = "127.0.0.1"
     cfg.Port = 2345
-    cfg.EtcdPeers = []string{}
-    cfg.BackendPeers = []string{}
     cfg.Debug = false
 
     if cfgFile != "" {

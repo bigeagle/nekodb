@@ -23,16 +23,15 @@ import (
 )
 
 type backendServerCfg struct {
-    Addr string        `toml:"addr"`
-    Port int           `toml:"port"`
-    MaxWorkers int     `toml:"max_workers"`
-    Name string        `toml:"name"`
-    Hostname string    `toml: "hostname"`
-    Virtuals int       `toml:"virtuals"`
-    EtcdPeers []string `toml:"etcd_peers"`
-    Debug bool         `toml:"debug"`
+    Addr string         `toml:"addr"`
+    Port int            `toml:"port"`
+    MaxWorkers int      `toml:"max_workers"`
+    Name string         `toml:"name"`
+    Hostname string     `toml:"hostname"`
+    Virtuals int        `toml:"virtuals"`
+    Debug bool          `toml:"debug"`
+    EtcdPeers []string  `toml:"etcd_peers"`
 }
-
 
 func loadConfig(cfgFile string, arguments []string) (*backendServerCfg, error) {
     var etcdPeers string
@@ -45,7 +44,6 @@ func loadConfig(cfgFile string, arguments []string) (*backendServerCfg, error) {
     cfg.Name = "nekod"
     cfg.Hostname = "localhost"
     cfg.Virtuals = 1
-    cfg.EtcdPeers = []string{}
     cfg.Debug = false
 
     if cfgFile != "" {

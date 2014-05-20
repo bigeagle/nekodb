@@ -20,23 +20,37 @@ package main
 import (
     "fmt"
     zmq "github.com/pebbe/zmq4"
-//    "github.com/coreos/go-etcd/etcd"
+    "github.com/coreos/go-etcd/etcd"
+//    "github.com/bigeagle/nekodb/nekolib"
 )
+
+type nekodPeerInfo struct {
+    Name string `json:"name"`
+    RealName string `json:"real_name"`
+    Hostname string `json:"hostname"`
+    Port int `json:"port"`
+}
 
 type nekoBackendServer struct {
     cfg *backendServerCfg
+    ec *etcd.Client
 }
 
 func startNekoBackendServer(cfg *backendServerCfg) (error) {
     srv := new(nekoBackendServer)
     srv.cfg = cfg
-    srv.init()
+    if err := srv.init(); err != nil {
+        return err
+    }
     srv.serveForever()
     return nil
 }
 
-func (s *nekoBackendServer) init() {
-
+func (s *nekoBackendServer) init() error {
+    if err := handleEtcd(s); err != nil {
+        return err
+    }
+    return nil
 }
 
 
