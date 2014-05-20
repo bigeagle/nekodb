@@ -52,3 +52,12 @@ type NekodSeriesInfo struct {
     Name NekoStrPack
     Count uint64
 }
+
+
+type NekodPeerInfo struct {
+    Name string `json:"name"`
+    RealName string `json:"real_name"`
+    Hostname string `json:"hostname"`
+    Port int `json:"port"`
+}
+

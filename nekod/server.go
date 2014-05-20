@@ -24,13 +24,6 @@ import (
 //    "github.com/bigeagle/nekodb/nekolib"
 )
 
-type nekodPeerInfo struct {
-    Name string `json:"name"`
-    RealName string `json:"real_name"`
-    Hostname string `json:"hostname"`
-    Port int `json:"port"`
-}
-
 type nekoBackendServer struct {
     cfg *backendServerCfg
     ec *etcd.Client

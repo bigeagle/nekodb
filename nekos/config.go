@@ -27,14 +27,13 @@ type nekosConfig struct {
     Addr string             `toml:"addr"`
     Port int                `toml:"port"`
     MaxWorkers int          `toml:"max_workers"`
-    BackendPeers []string   `toml:"backend_peers"`
     EtcdPeers []string      `toml:"etcd_peers"`
     Debug bool              `toml:"debug"`
 }
 
 
 func loadConfig(cfgFile string, arguments []string) (*nekosConfig, error) {
-    var etcdPeers, backendPeers string
+    var etcdPeers string
     var showVersion bool
 
     cfg := new(nekosConfig)
@@ -56,7 +55,6 @@ func loadConfig(cfgFile string, arguments []string) (*nekosConfig, error) {
     f.IntVar(&cfg.Port, "port", cfg.Port, "Bind Port")
     f.IntVar(&cfg.MaxWorkers, "max-workers", cfg.MaxWorkers, "Max worker threads")
     f.StringVar(&etcdPeers, "etcd-peers", "", "Etcd peers")
-    f.StringVar(&backendPeers, "backend-peers", "", "Etcd peers")
     f.BoolVar(&cfg.Debug, "debug", cfg.Debug, "Debug Mode")
 
     // Begin Ignored  (for usage message)
@@ -69,9 +67,6 @@ func loadConfig(cfgFile string, arguments []string) (*nekosConfig, error) {
     } else {
         if etcdPeers != "" {
             cfg.EtcdPeers = strings.Split(etcdPeers, ",")
-        }
-        if backendPeers != "" {
-            cfg.BackendPeers = strings.Split(backendPeers, ",")
         }
 
         logger.Debug("%v", cfg)

@@ -30,7 +30,7 @@ func virtualName(name string, number int) string {
 }
 
 func refreshPeer(s *nekoBackendServer) error {
-    var vnode nekodPeerInfo
+    var vnode nekolib.NekodPeerInfo
     logger.Debug("Refresh Peer Info")
     for i := 0; i < s.cfg.Virtuals; i++ {
         vname := virtualName(s.cfg.Name, i)
@@ -42,6 +42,7 @@ func refreshPeer(s *nekoBackendServer) error {
         vn, _ := json.Marshal(vnode)
         key := fmt.Sprintf("%s/%s", nekolib.ETCD_PEER_DIR, vname)
         s.ec.Set(key, string(vn), nekolib.ETCD_REFRESH_INTERVAL)
+        logger.Debug("%s: %s", key, vn)
     }
     return nil
 }

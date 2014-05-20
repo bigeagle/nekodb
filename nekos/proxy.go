@@ -19,24 +19,46 @@ package main
 
 import (
 //     "github.com/bigeagle/nekodb/nekolib"
-     "fmt"
-     zmq "github.com/pebbe/zmq4"
+    "fmt"
+    "sync"
+    zmq "github.com/pebbe/zmq4"
+    "github.com/coreos/go-etcd/etcd"
 )
 
 
+type nekodPeer struct {
+    RealName string
+    Hostname string
+    Port int
+}
+
+
 type nekoServer struct {
+    m  sync.RWMutex
     cfg *nekosConfig
+    ec *etcd.Client
+    peerChan chan *etcd.Response
+    backends map[string]*nekodPeer
 }
 
 func startNekoServer(cfg *nekosConfig) (error) {
     srv := new(nekoServer)
     srv.cfg = cfg
-    srv.init()
+    srv.peerChan = make(chan *etcd.Response)
+    srv.backends = make(map[string]*nekodPeer)
+    if err := srv.init(); err != nil {
+        return err
+    }
     srv.serveForever()
     return nil
 }
 
-func (s *nekoServer) init() {
+func (s *nekoServer) init() error {
+    if err := handleEtcd(s); err != nil {
+        return err
+    }
+    logger.Info("%v", s.backends)
+    return nil
 
 }
 
