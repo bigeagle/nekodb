@@ -26,26 +26,20 @@ import (
 )
 
 
-type nekodPeer struct {
-    RealName string
-    Hostname string
-    Port int
-}
-
 
 type nekoServer struct {
     m  sync.RWMutex
     cfg *nekosConfig
     ec *etcd.Client
     peerChan chan *etcd.Response
-    backends map[string]*nekodPeer
+    backends *nekoBackendRing
 }
 
 func startNekoServer(cfg *nekosConfig) (error) {
     srv := new(nekoServer)
     srv.cfg = cfg
     srv.peerChan = make(chan *etcd.Response)
-    srv.backends = make(map[string]*nekodPeer)
+    srv.backends = newNekoBackendRing()
     if err := srv.init(); err != nil {
         return err
     }

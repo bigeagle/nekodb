@@ -40,11 +40,7 @@ func handleEtcd(s *nekoServer) error {
             var vnode nekolib.NekodPeerInfo
             json.Unmarshal([]byte(vn.Value), &vnode)
             // logger.Info("%v", vnode)
-            peer := new(nekodPeer)
-            peer.RealName = vnode.RealName
-            peer.Hostname = vnode.Hostname
-            peer.Port = vnode.Port
-            s.backends[vnode.Name] = peer
+            s.backends.Insert(&vnode)
         }
     }
 
@@ -62,15 +58,11 @@ func handlePeerUpdate(s *nekoServer) {
         defer s.m.Unlock()
         switch action {
         case "expire", "delete":
-            delete(s.backends, vname)
+            s.backends.Remove(vname)
         default:
             var vnode nekolib.NekodPeerInfo
             json.Unmarshal([]byte(value), &vnode)
-            peer := new(nekodPeer)
-            peer.RealName = vnode.RealName
-            peer.Hostname = vnode.Hostname
-            peer.Port = vnode.Port
-            s.backends[vnode.Name] = peer
+            s.backends.Insert(&vnode)
         }
     }
 
