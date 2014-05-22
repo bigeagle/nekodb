@@ -32,6 +32,13 @@ const (
     OP_SERIES_INFO
 )
 
+const (
+    STATE_INIT int = iota
+    STATE_READY
+    STATE_RECOVERING
+    STATE_SYNCING
+)
+
 type NekodMsgHeader struct {
     Opcode uint8
 }
@@ -59,5 +66,6 @@ type NekodPeerInfo struct {
     RealName string `json:"real_name"`
     Hostname string `json:"hostname"`
     Port int `json:"port"`
+    State int `json:"state"`
 }
 

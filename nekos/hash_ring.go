@@ -24,19 +24,15 @@ import (
     "github.com/bigeagle/nekodb/nekolib"
 )
 
-type nekodPeer struct {
-    Name string
-    RealName string
-    Hostname string
-    Port int
-}
+type nekodPeer nekolib.NekodPeerInfo
 
-func newNekodPeer(name, realName, hostname string, port int) *nekodPeer {
+func newNekodPeer(name, realName, hostname string, port, state int) *nekodPeer {
     p := new(nekodPeer)
     p.Name = name
     p.RealName = realName
     p.Hostname = hostname
     p.Port = port
+    p.State = state
     return p
 }
 
@@ -65,6 +61,7 @@ func (r *nekoBackendRing) Insert(p *nekolib.NekodPeerInfo) {
     n.RealName = p.RealName
     n.Hostname = p.Hostname
     n.Port = p.Port
+    n.State = p.State
     n.Key = nekolib.Hash32([]byte(n.Name))
 
     r.m.Lock()

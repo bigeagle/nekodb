@@ -19,19 +19,23 @@ package main
 
 import (
     "fmt"
+    "sync/atomic"
+    "time"
     zmq "github.com/pebbe/zmq4"
     "github.com/coreos/go-etcd/etcd"
-//    "github.com/bigeagle/nekodb/nekolib"
+    "github.com/bigeagle/nekodb/nekolib"
 )
 
 type nekoBackendServer struct {
     cfg *backendServerCfg
     ec *etcd.Client
+    state uint32
 }
 
 func startNekoBackendServer(cfg *backendServerCfg) (error) {
     srv := new(nekoBackendServer)
     srv.cfg = cfg
+    srv.ec = nil
     if err := srv.init(); err != nil {
         return err
     }
@@ -39,7 +43,15 @@ func startNekoBackendServer(cfg *backendServerCfg) (error) {
     return nil
 }
 
+func (s *nekoBackendServer) setState(state int) {
+    atomic.StoreUint32(&s.state, uint32(state))
+    if s.ec != nil {
+        refreshPeer(s)
+    }
+}
+
 func (s *nekoBackendServer) init() error {
+    s.setState(nekolib.STATE_INIT)
     if err := handleEtcd(s); err != nil {
         return err
     }
@@ -59,6 +71,11 @@ func (s *nekoBackendServer) serveForever() {
     for i :=0; i < s.cfg.MaxWorkers; i++ {
         go startWorker(s)
     }
+
+    go func() {
+        time.Sleep(500*time.Millisecond)
+        s.setState(nekolib.STATE_READY)
+    }()
 
     err := zmq.Proxy(clients, workers, nil)
     logger.Fatalf("Proxy Exited: %s", err.Error())

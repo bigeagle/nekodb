@@ -38,6 +38,7 @@ func refreshPeer(s *nekoBackendServer) error {
         vnode.RealName = s.cfg.Name
         vnode.Hostname = s.cfg.Hostname
         vnode.Port = s.cfg.Port
+        vnode.State = int(s.state)
 
         vn, _ := json.Marshal(vnode)
         key := fmt.Sprintf("%s/%s", nekolib.ETCD_PEER_DIR, vname)
