@@ -69,3 +69,12 @@ type NekodPeerInfo struct {
     State int `json:"state"`
 }
 
+
+type NekoSeriesInfo struct {
+    // series name
+    Name string   `json:"name"`
+    // unmutable unique id
+    Id string     `json:"id"`
+    // fragmentation level
+    FragLevel int `json:"frag_level"`
+}

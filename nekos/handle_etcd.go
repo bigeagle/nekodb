@@ -21,56 +21,127 @@ import (
     // "time"
     // "fmt"
     "encoding/json"
+    "strings"
     "github.com/coreos/go-etcd/etcd"
     "github.com/bigeagle/nekodb/nekolib"
 )
 
 
-func handleEtcd(s *nekoServer) error {
+func initEtcd() error {
+    s := getServer()
     s.ec = etcd.NewClient(s.cfg.EtcdPeers)
-    r, err := s.ec.Get(nekolib.ETCD_PEER_DIR, true, true)
+    _, err := s.ec.Get(nekolib.ETCD_DIR, false, false)
 
     if err != nil {
         logger.Error(err.Error())
         return err
-    } else {
-        s.m.Lock()
-        defer s.m.Unlock()
-        for _, vn := range r.Node.Nodes {
-            var vnode nekolib.NekodPeerInfo
-            json.Unmarshal([]byte(vn.Value), &vnode)
-            // logger.Info("%v", vnode)
-            s.backends.Insert(&vnode)
-        }
+    }
+    if err = initPeers(); err != nil {
+        logger.Error(err.Error())
+        return err
+    }
+    if err = initCollections(); err != nil {
+        logger.Error(err.Error())
+        return err
     }
 
     logger.Info("Watching for peer udpates")
     go s.ec.Watch(nekolib.ETCD_PEER_DIR, 0, true, s.peerChan, nil)
-    go handlePeerUpdate(s)
+    logger.Info("Watching for collection and series udpates")
+    go s.ec.Watch(nekolib.ETCD_COLLECTION_DIR, 0, true, s.seriesChan, nil)
+    go handlePeerUpdate()
+    go handleCollectionUpdate()
+    logger.Debug("%v", s.collections)
 
     return nil
 }
 
-
-func handlePeerUpdate(s *nekoServer) {
-    updatePeer := func(action string, vname string, value string) {
-        s.m.Lock()
-        defer s.m.Unlock()
-        switch action {
-        case "expire", "delete":
-            s.backends.Remove(vname)
-        default:
+func initPeers() error {
+    s := getServer()
+    r, err := s.ec.Get(nekolib.ETCD_PEER_DIR, true, true)
+    if err != nil {
+        logger.Error(err.Error())
+        return err
+    } else {
+        for _, vn := range r.Node.Nodes {
             var vnode nekolib.NekodPeerInfo
-            json.Unmarshal([]byte(value), &vnode)
-            s.backends.Insert(&vnode)
+            if err = json.Unmarshal([]byte(vn.Value), &vnode); err == nil {
+                s.backends.Insert(&vnode)
+            }
+            // logger.Info("%v", vnode)
+        }
+        return nil
+    }
+}
+
+func initCollections() error {
+    s := getServer()
+    r, err := s.ec.Get(nekolib.ETCD_COLLECTION_DIR, true, true)
+    if err != nil {
+        logger.Error(err.Error())
+        return err
+    } else {
+        for _, collNode := range r.Node.Nodes {
+            collName := collNode.Key[len(nekolib.ETCD_COLLECTION_DIR)+1:]
+            s.collections.ensureCollection(collName)
+            for _, sNode := range collNode.Nodes {
+                series := new(nekoSeries)
+                if err = json.Unmarshal([]byte(sNode.Value), series); err == nil {
+                    s.collections.insertSeries(collName, series)
+                }
+            }
         }
     }
 
+    return nil
+}
+
+func handlePeerUpdate() {
+    s := getServer()
     for {
         update := <-s.peerChan
         logger.Debug("%s: %v", update.Action, update.Node)
         vname := update.Node.Key[len(nekolib.ETCD_PEER_DIR)+1:]
-        updatePeer(update.Action, vname, update.Node.Value)
+
+        switch update.Action {
+        case "expire", "delete":
+            s.backends.Remove(vname)
+        default:
+            var vnode nekolib.NekodPeerInfo
+            if err := json.Unmarshal([]byte(update.Node.Value), &vnode); err == nil {
+                s.backends.Insert(&vnode)
+            }
+        }
+
         logger.Debug("%v", s.backends)
     }
+}
+
+func handleCollectionUpdate() {
+
+    s := getServer()
+    for {
+        update := <-s.seriesChan
+
+        logger.Debug("%s: %v", update.Action, update.Node)
+        key := strings.Split(
+            update.Node.Key[len(nekolib.ETCD_COLLECTION_DIR)+1:], "/")
+
+        collName := key[0]
+        switch len(key) {
+
+        case 0:
+            s.collections.ensureCollection(collName)
+
+        case 1:
+            series := new(nekoSeries)
+            if err := json.Unmarshal([]byte(update.Node.Value), series); err == nil {
+                s.collections.insertSeries(collName, series)
+            }
+
+        default:
+            continue
+        }
+    }
+
 }

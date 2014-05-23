@@ -20,6 +20,9 @@ package nekolib
 const (
     ETCD_DIR = "/nekodb"
     ETCD_PEER_DIR = ETCD_DIR + "/peers"
+    ETCD_COLLECTION_DIR = ETCD_DIR + "/collections"
     ETCD_REFRESH_INTERVAL = 64
+
+    SLICE_FRAG_LEVEL_DEFAULT = 14
 )
 

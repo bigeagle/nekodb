@@ -18,28 +18,30 @@
 package main
 
 import (
-//     "github.com/bigeagle/nekodb/nekolib"
     "fmt"
     "sync"
     zmq "github.com/pebbe/zmq4"
     "github.com/coreos/go-etcd/etcd"
+    // "github.com/bigeagle/nekodb/nekolib"
 )
-
 
 
 type nekoServer struct {
     m  sync.RWMutex
     cfg *nekosConfig
     ec *etcd.Client
-    peerChan chan *etcd.Response
+    peerChan, seriesChan chan *etcd.Response
     backends *nekoBackendRing
+    collections *nekoCollection
 }
 
 func startNekoServer(cfg *nekosConfig) (error) {
-    srv := new(nekoServer)
+    srv = new(nekoServer)
     srv.cfg = cfg
     srv.peerChan = make(chan *etcd.Response)
+    srv.seriesChan = make(chan *etcd.Response)
     srv.backends = newNekoBackendRing()
+    srv.collections = newNekoCollection()
     if err := srv.init(); err != nil {
         return err
     }
@@ -47,11 +49,14 @@ func startNekoServer(cfg *nekosConfig) (error) {
     return nil
 }
 
+func getServer() *nekoServer {
+    return srv
+}
+
 func (s *nekoServer) init() error {
-    if err := handleEtcd(s); err != nil {
+    if err := initEtcd(); err != nil {
         return err
     }
-    logger.Info("%v", s.backends)
     return nil
 
 }

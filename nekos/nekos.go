@@ -27,6 +27,7 @@ import (
 
 var (
     logger *gologging.Logger
+    srv *nekoServer
 )
 
 func main() {
