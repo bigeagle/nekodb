@@ -32,7 +32,7 @@ type nekoServer struct {
     ec *etcd.Client
     peerChan, seriesChan chan *etcd.Response
     backends *nekoBackendRing
-    collections *nekoCollection
+    collection *nekoCollection
 }
 
 func startNekoServer(cfg *nekosConfig) (error) {
@@ -41,7 +41,7 @@ func startNekoServer(cfg *nekosConfig) (error) {
     srv.peerChan = make(chan *etcd.Response)
     srv.seriesChan = make(chan *etcd.Response)
     srv.backends = newNekoBackendRing()
-    srv.collections = newNekoCollection()
+    srv.collection = newNekoCollection()
     if err := srv.init(); err != nil {
         return err
     }

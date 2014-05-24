@@ -46,7 +46,7 @@ func startNekoBackendServer(cfg *backendServerCfg) (error) {
 func (s *nekoBackendServer) setState(state int) {
     atomic.StoreUint32(&s.state, uint32(state))
     if s.ec != nil {
-        refreshPeer(s)
+        refreshPeer(s, nekolib.PEER_FLG_UPDATE)
     }
 }
 

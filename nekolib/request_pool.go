@@ -26,7 +26,7 @@ type ReqPool struct {
     Pool chan *zmq.Socket
 }
 
-func NewRequstPool(target string, size int) *ReqPool {
+func NewRequestPool(target string, size int) *ReqPool {
     pool := new(ReqPool)
     pool.Size = size
     pool.Pool = make(chan *zmq.Socket, size)
@@ -46,4 +46,8 @@ func (p *ReqPool) Get() *zmq.Socket {
 
 func (p *ReqPool) Return(s *zmq.Socket) {
     p.Pool <- s
+}
+
+func (p *ReqPool) Close() {
+    close(p.Pool)
 }

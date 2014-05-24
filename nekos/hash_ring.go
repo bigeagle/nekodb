@@ -18,23 +18,12 @@
 package main
 
 import (
+    "errors"
     "fmt"
     "strings"
     "sync"
     "github.com/bigeagle/nekodb/nekolib"
 )
-
-type nekodPeer nekolib.NekodPeerInfo
-
-func newNekodPeer(name, realName, hostname string, port, state int) *nekodPeer {
-    p := new(nekodPeer)
-    p.Name = name
-    p.RealName = realName
-    p.Hostname = hostname
-    p.Port = port
-    p.State = state
-    return p
-}
 
 type nekoRingNode struct {
     nekodPeer
@@ -54,14 +43,11 @@ func newNekoBackendRing() *nekoBackendRing {
     return ring
 }
 
-
 func (r *nekoBackendRing) Insert(p *nekolib.NekodPeerInfo) {
     n := new(nekoRingNode)
-    n.Name = p.Name
-    n.RealName = p.RealName
-    n.Hostname = p.Hostname
-    n.Port = p.Port
-    n.State = p.State
+    np := newNekodPeerFromInfo(p)
+    np.Init()
+    n.nekodPeer = *np
     n.Key = nekolib.Hash32([]byte(n.Name))
 
     r.m.Lock()
@@ -72,9 +58,8 @@ func (r *nekoBackendRing) Insert(p *nekolib.NekodPeerInfo) {
         r.Head = n
     } else if r.Head.Key >= n.Key {
         if r.Head.Name == n.Name {
-            r.Head.RealName = n.RealName
-            r.Head.Hostname = n.Hostname
-            r.Head.Port = n.Port
+            r.Head.nekodPeer.Close()
+            r.Head.nekodPeer = *np
         } else {
             prev, next := r.Head.Prev, r.Head
             prev.Next = n
@@ -89,9 +74,8 @@ func (r *nekoBackendRing) Insert(p *nekolib.NekodPeerInfo) {
         next := prev.Next
         for cur := next; cur.Key == n.Key; cur = cur.Next {
             if cur.Name == n.Name {
-                cur.RealName = n.RealName
-                cur.Hostname = n.Hostname
-                cur.Port = n.Port
+                cur.nekodPeer.Close()
+                cur.nekodPeer = *np
                 return
             }
         }
@@ -103,37 +87,93 @@ func (r *nekoBackendRing) Insert(p *nekolib.NekodPeerInfo) {
 
 }
 
+
+
+func (r *nekoBackendRing) UpdateInfo(name string, p *nekolib.NekodPeerInfo) {
+    if node, ok := r.Get(name); ok {
+        logger.Debug("%v", node)
+        node.nekodPeer.CopyInfo(p)
+    } else {
+        logger.Debug("Not Found: %s", name)
+        r.Insert(p)
+    }
+}
+
+func (r *nekoBackendRing) ResetPeer(name string, p *nekolib.NekodPeerInfo) {
+    if node, ok := r.Get(name); ok {
+        node.nekodPeer.CopyInfo(p)
+        node.nekodPeer.Reset()
+    } else {
+        r.Insert(p)
+    }
+
+}
+
+
 func (r *nekoBackendRing) Remove(name string) {
     r.m.Lock()
     defer r.m.Unlock()
 
-    if r.Head == nil {
-        return
-    } else {
-        cur := r.Head
-        for {
-            if cur.Name == name {
-                if r.Head == cur {
-                    if cur.Next == cur {
-                        r.Head = nil
-                    } else {
-                        r.Head = cur.Next
-                    }
+    for cur := r.Head; cur != nil; cur = cur.Next{
+        if cur.Name == name {
+            if r.Head == cur {
+                if cur.Next == cur {
+                    r.Head = nil
+                } else {
+                    r.Head = cur.Next
                 }
-                cur.Prev.Next = cur.Next
-                cur.Next.Prev = cur.Prev
-                cur.Next = nil
-                cur.Prev = nil
-                break
             }
-            if cur.Next == r.Head {
-                break
-            }
-            cur = cur.Next
+            cur.Prev.Next = cur.Next
+            cur.Next.Prev = cur.Prev
+            cur.Next = nil
+            cur.Prev = nil
+            break
+        }
+        if cur.Next == r.Head {
+            break
         }
     }
 
 }
+
+func (r *nekoBackendRing) ForEach(op func(n *nekoRingNode)) {
+    for cur := r.Head; cur != nil; cur = cur.Next{
+        op(cur)
+        if cur.Next == r.Head {
+            break
+        }
+    }
+}
+
+func (r *nekoBackendRing) Get(name string) (*nekoRingNode, bool) {
+    for cur := r.Head; cur != nil; cur = cur.Next{
+        if cur.Name == name {
+            return cur, true
+        }
+
+        if cur.Next == r.Head {
+            break
+        }
+    }
+    return nil, false
+}
+
+func (r *nekoBackendRing) GetByKey(key uint32) (*nekoRingNode, error) {
+    if (key < r.Head.Key) || (key > r.Head.Prev.Key) {
+        return r.Head, nil
+    } else {
+        for cur := r.Head; cur != nil ;cur = cur.Next {
+            if (cur.Key < key) && (cur.Next.Key >= key) {
+                return cur.Next, nil
+            }
+            if cur.Next == r.Head {
+                break
+            }
+        }
+    }
+    return nil, errors.New("Not Found")
+}
+
 
 func (r *nekoBackendRing) String() string {
     nodes := make([]string, 0)

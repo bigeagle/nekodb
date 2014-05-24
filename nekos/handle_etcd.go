@@ -21,7 +21,8 @@ import (
     // "time"
     // "fmt"
     "encoding/json"
-    "strings"
+    // "strings"
+    //zmq "github.com/pebbe/zmq4"
     "github.com/coreos/go-etcd/etcd"
     "github.com/bigeagle/nekodb/nekolib"
 )
@@ -48,10 +49,10 @@ func initEtcd() error {
     logger.Info("Watching for peer udpates")
     go s.ec.Watch(nekolib.ETCD_PEER_DIR, 0, true, s.peerChan, nil)
     logger.Info("Watching for collection and series udpates")
-    go s.ec.Watch(nekolib.ETCD_COLLECTION_DIR, 0, true, s.seriesChan, nil)
+    go s.ec.Watch(nekolib.ETCD_SERIES_DIR, 0, true, s.seriesChan, nil)
     go handlePeerUpdate()
     go handleCollectionUpdate()
-    logger.Debug("%v", s.collections)
+    logger.Debug("%v", s.collection)
 
     return nil
 }
@@ -76,19 +77,15 @@ func initPeers() error {
 
 func initCollections() error {
     s := getServer()
-    r, err := s.ec.Get(nekolib.ETCD_COLLECTION_DIR, true, true)
+    r, err := s.ec.Get(nekolib.ETCD_SERIES_DIR, true, true)
     if err != nil {
         logger.Error(err.Error())
         return err
     } else {
-        for _, collNode := range r.Node.Nodes {
-            collName := collNode.Key[len(nekolib.ETCD_COLLECTION_DIR)+1:]
-            s.collections.ensureCollection(collName)
-            for _, sNode := range collNode.Nodes {
-                series := new(nekoSeries)
-                if err = json.Unmarshal([]byte(sNode.Value), series); err == nil {
-                    s.collections.insertSeries(collName, series)
-                }
+        for _, sNode := range r.Node.Nodes {
+            series := new(nekoSeries)
+            if err = json.Unmarshal([]byte(sNode.Value), series); err == nil {
+                s.collection.insertSeries(series)
             }
         }
     }
@@ -100,7 +97,7 @@ func handlePeerUpdate() {
     s := getServer()
     for {
         update := <-s.peerChan
-        logger.Debug("%s: %v", update.Action, update.Node)
+        // logger.Debug("%s: %v", update.Action, update.Node)
         vname := update.Node.Key[len(nekolib.ETCD_PEER_DIR)+1:]
 
         switch update.Action {
@@ -109,7 +106,18 @@ func handlePeerUpdate() {
         default:
             var vnode nekolib.NekodPeerInfo
             if err := json.Unmarshal([]byte(update.Node.Value), &vnode); err == nil {
-                s.backends.Insert(&vnode)
+                switch vnode.Flag {
+                case nekolib.PEER_FLG_NEW:
+                    logger.Debug("insert")
+                    s.backends.Insert(&vnode)
+                case nekolib.PEER_FLG_UPDATE:
+                    s.backends.UpdateInfo(vname, &vnode)
+                case nekolib.PEER_FLG_RESET:
+                    logger.Debug("reset")
+                    s.backends.ResetPeer(vname, &vnode)
+                default:
+                    continue
+                }
             }
         }
 
@@ -124,24 +132,18 @@ func handleCollectionUpdate() {
         update := <-s.seriesChan
 
         logger.Debug("%s: %v", update.Action, update.Node)
-        key := strings.Split(
-            update.Node.Key[len(nekolib.ETCD_COLLECTION_DIR)+1:], "/")
+        sname := update.Node.Key[len(nekolib.ETCD_SERIES_DIR)+1:]
 
-        collName := key[0]
-        switch len(key) {
-
-        case 0:
-            s.collections.ensureCollection(collName)
-
-        case 1:
+        switch update.Action {
+        case "expire", "delete":
+            s.collection.removeSeries(sname)
+        default:
             series := new(nekoSeries)
             if err := json.Unmarshal([]byte(update.Node.Value), series); err == nil {
-                s.collections.insertSeries(collName, series)
+                s.collection.insertSeries(series)
             }
-
-        default:
-            continue
         }
-    }
 
+    }
 }
+

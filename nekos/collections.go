@@ -19,7 +19,7 @@ package main
 
 
 import (
-    "fmt"
+//    "fmt"
     "sync"
     "strings"
     // zmq "github.com/pebbe/zmq4"
@@ -31,52 +31,44 @@ type nekoSeries nekolib.NekoSeriesInfo
 
 type nekoCollection struct {
     m sync.RWMutex
-    coll map[string](map[string]*nekoSeries)
+    coll map[string]*nekoSeries
 }
 
 func newNekoCollection() *nekoCollection {
     c := new(nekoCollection)
-    c.coll = make(map[string](map[string]*nekoSeries))
+    c.coll = make(map[string]*nekoSeries)
     return c
 }
 
-func (c *nekoCollection) ensureCollection_unsafe(name string) {
-    if _, ok := c.coll[name]; !ok {
-        sc := make(map[string]*nekoSeries)
-        c.coll[name] = sc
-    }
+func (c *nekoCollection) insertSeries_unsafe(series *nekoSeries) {
+    c.coll[series.Name] = series
 }
 
-func (c *nekoCollection) ensureCollection(name string) {
+func (c *nekoCollection) insertSeries(series *nekoSeries) {
     c.m.Lock()
     defer c.m.Unlock()
-    c.ensureCollection_unsafe(name)
+    c.insertSeries_unsafe(series)
 }
 
-func (c *nekoCollection) insertSeries_unsafe(collName string, series *nekoSeries) {
-    c.ensureCollection_unsafe(collName)
-    if series != nil {
-        c.coll[collName][series.Name] = series
-    }
-}
-
-func (c *nekoCollection) insertSeries(collName string, series *nekoSeries) {
+func (c *nekoCollection) removeSeries(sname string) {
     c.m.Lock()
     defer c.m.Unlock()
-    c.insertSeries_unsafe(collName, series)
+    delete(c.coll, sname)
+}
+
+func (c *nekoCollection) getSeries(sname string) (*nekoSeries, bool) {
+    c.m.RLock()
+    defer c.m.Unlock()
+    s, ok := c.coll[sname]
+    return s, ok
 }
 
 func (c *nekoCollection) String() string {
     c.m.RLock()
     defer c.m.RUnlock()
-    colls := make([]string, 0)
-    for cname, coll := range c.coll {
-        series := make([]string, 0)
-        for sname, _ := range coll {
-            series = append(series, sname)
-        }
-        colls = append(colls,
-            fmt.Sprintf("{%s: %s}", cname, strings.Join(series, ",")))
+    series := make([]string, 0)
+    for sname, _ := range c.coll {
+        series = append(series, sname)
     }
-    return strings.Join(colls, ", ")
+    return strings.Join(series, ",")
 }

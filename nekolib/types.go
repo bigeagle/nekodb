@@ -39,6 +39,17 @@ const (
     STATE_SYNCING
 )
 
+const (
+    PEER_FLG_KEEP int = iota
+    PEER_FLG_UPDATE
+    PEER_FLG_NEW
+    PEER_FLG_RESET
+)
+
+type BytePacket interface {
+    ToBytes() []byte
+}
+
 type NekodMsgHeader struct {
     Opcode uint8
 }
@@ -67,13 +78,14 @@ type NekodPeerInfo struct {
     Hostname string `json:"hostname"`
     Port int `json:"port"`
     State int `json:"state"`
+    Flag  int `json:"flag"`
 }
 
 
 type NekoSeriesInfo struct {
-    // series name
+    // series name, used for query
     Name string   `json:"name"`
-    // unmutable unique id
+    // unmutable unique id, used for storage
     Id string     `json:"id"`
     // fragmentation level
     FragLevel int `json:"frag_level"`
