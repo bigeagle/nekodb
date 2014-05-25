@@ -69,7 +69,7 @@ func (s *nekoBackendServer) serveForever() {
     workers.Bind(workerAddr)
 
     for i :=0; i < s.cfg.MaxWorkers; i++ {
-        go startWorker(s)
+        go startWorker(i, s)
     }
 
     go func() {

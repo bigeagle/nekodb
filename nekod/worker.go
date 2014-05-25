@@ -17,18 +17,35 @@
 
 package main
 
+import (
+    zmq "github.com/pebbe/zmq4"
+)
+
 const workerAddr = "inproc://workers"
 
 type nekodWorker struct {
+    id int
     srv *nekoBackendServer
+    sock *zmq.Socket
 }
 
 func (w *nekodWorker) serveForever() {
-
+    for {
+        packBytes, _ := w.sock.RecvBytes(0)
+        w.processRequest(packBytes)
+    }
 }
 
-func startWorker(s *nekoBackendServer) {
+func startWorker(id int, s *nekoBackendServer) {
     w := new(nekodWorker)
+    w.id = id
     w.srv = s
+    w.sock, _ = zmq.NewSocket(zmq.REP)
+    w.sock.Connect(workerAddr)
     w.serveForever()
+}
+
+func (w *nekodWorker) processRequest(packBytes []byte) {
+    logger.Debug("worker %d: %v", w.id, packBytes)
+    w.sock.Send("reply", 0)
 }

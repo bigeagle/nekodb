@@ -17,19 +17,51 @@
 
 package main
 
+import (
+    "bytes"
+    // "encoding/binary"
+    zmq "github.com/pebbe/zmq4"
+    "github.com/bigeagle/nekodb/nekolib"
+)
+
 const workerAddr = "inproc://workers"
 
+var ReqHandlerMap = map[uint8](func(*nekoWorker, []byte) error){
+    nekolib.OP_NEW_SERIES: ReqNewSeries,
+}
+
+
 type nekoWorker struct {
+    id int
     srv *nekoServer
+    sock *zmq.Socket
 }
 
 func (w *nekoWorker) serveForever() {
-
+    for {
+        packBytes, _ := w.sock.RecvBytes(0)
+        opcode := packBytes[0]
+        if handler, ok := ReqHandlerMap[uint8(opcode)]; ok {
+            handler(w, packBytes)
+        }
+    }
 }
 
-func startWorker(s *nekoServer) {
+func startWorker(id int, s *nekoServer) {
     w := new(nekoWorker)
+    w.id = id
     w.srv = s
+    w.sock, _ = zmq.NewSocket(zmq.REP)
+    w.sock.Connect(workerAddr)
     w.serveForever()
 }
 
+
+func ReqNewSeries(w *nekoWorker, packBytes []byte) error {
+    series := new(nekolib.NekoSeriesInfo)
+    series.FromBytes(bytes.NewBuffer(packBytes[1:]))
+    logger.Debug("%v", packBytes[1:])
+    logger.Debug("worker %d: %v", w.id, series)
+    w.sock.Send("reply", 0)
+    return nil
+}

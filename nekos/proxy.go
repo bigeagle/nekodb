@@ -71,8 +71,8 @@ func (s *nekoServer) serveForever() {
     defer workers.Close()
     workers.Bind(workerAddr)
 
-    for i :=0; i < s.cfg.MaxWorkers; i++ {
-        go startWorker(s)
+    for i := 0; i < s.cfg.MaxWorkers; i++ {
+        go startWorker(i, s)
     }
 
     err := zmq.Proxy(clients, workers, nil)
