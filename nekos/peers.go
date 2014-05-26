@@ -26,6 +26,7 @@ import (
     "github.com/bigeagle/nekodb/nekolib"
 )
 
+
 type nekodPeer struct {
     m sync.RWMutex
     Name string `json:"name"`
@@ -62,7 +63,7 @@ func (p *nekodPeer) CopyInfo(i *nekolib.NekodPeerInfo) {
 
 func (p *nekodPeer) Init() {
     p.ReqPool = nekolib.NewRequestPool(
-        fmt.Sprintf("tcp://%s:%d", p.Hostname, p.State), 4)
+        fmt.Sprintf("tcp://%s:%d", p.Hostname, p.Port), 4)
 }
 
 func (p *nekodPeer) Close() {
@@ -78,9 +79,9 @@ func (p *nekodPeer) Reset() {
     p.Init()
 }
 
-func (p *nekodPeer) Request(socketHandler func(s *zmq.Socket)) {
+func (p *nekodPeer) Request(socketHandler func(s *zmq.Socket) error) error{
     sock := p.ReqPool.Get()
     defer p.ReqPool.Return(sock)
-    socketHandler(sock)
+    return socketHandler(sock)
 }
 

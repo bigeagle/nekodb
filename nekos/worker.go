@@ -62,6 +62,7 @@ func ReqNewSeries(w *nekoWorker, packBytes []byte) error {
     series.FromBytes(bytes.NewBuffer(packBytes[1:]))
     logger.Debug("%v", packBytes[1:])
     logger.Debug("worker %d: %v", w.id, series)
+    newSeries(series)
     w.sock.Send("reply", 0)
     return nil
 }

@@ -18,7 +18,9 @@
 package main
 
 import (
+    "bytes"
     zmq "github.com/pebbe/zmq4"
+    "github.com/bigeagle/nekodb/nekolib"
 )
 
 const workerAddr = "inproc://workers"
@@ -29,10 +31,19 @@ type nekodWorker struct {
     sock *zmq.Socket
 }
 
+var ReqHandlerMap = map[uint8](func(*nekodWorker, []byte) error){
+    nekolib.OP_NEW_SERIES: ReqNewSeries,
+    nekolib.OP_PING: ReqPing,
+}
+
 func (w *nekodWorker) serveForever() {
     for {
         packBytes, _ := w.sock.RecvBytes(0)
-        w.processRequest(packBytes)
+        // logger.Debug("%v", packBytes)
+        opcode := packBytes[0]
+        if handler, ok := ReqHandlerMap[uint8(opcode)]; ok {
+            handler(w, packBytes)
+        }
     }
 }
 
@@ -49,3 +60,21 @@ func (w *nekodWorker) processRequest(packBytes []byte) {
     logger.Debug("worker %d: %v", w.id, packBytes)
     w.sock.Send("reply", 0)
 }
+
+
+func ReqNewSeries(w *nekodWorker, packBytes []byte) error {
+    series := new(nekolib.NekoSeriesInfo)
+    series.FromBytes(bytes.NewBuffer(packBytes[1:]))
+    // logger.Debug("%v", packBytes[1:])
+    logger.Debug("worker %d: %v", w.id, series)
+    w.sock.Send("reply", 0)
+    // newSeries(series.Name, series.Id, series.FragLevel)
+    return nil
+}
+
+func ReqPing(w *nekodWorker, packBytes []byte) error {
+    buf := []byte{byte(nekolib.OP_PONG)}
+    w.sock.SendBytes(buf, 0)
+    return nil
+}
+

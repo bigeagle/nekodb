@@ -27,7 +27,9 @@ import (
     "github.com/bigeagle/nekodb/nekolib"
 )
 
-type nekoSeries nekolib.NekoSeriesInfo
+type nekoSeries struct {
+    nekolib.NekoSeriesInfo
+}
 
 type nekoCollection struct {
     m sync.RWMutex

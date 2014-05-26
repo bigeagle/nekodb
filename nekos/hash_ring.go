@@ -22,6 +22,7 @@ import (
     "fmt"
     "strings"
     "sync"
+    "sync/atomic"
     "github.com/bigeagle/nekodb/nekolib"
 )
 
@@ -34,12 +35,17 @@ type nekoRingNode struct {
 
 type nekoBackendRing struct {
     Head *nekoRingNode
+    peer_count, real_peer_count int32
+    real_peers map[string]bool
     m sync.RWMutex
 }
 
 func newNekoBackendRing() *nekoBackendRing {
     ring := new(nekoBackendRing)
     ring.Head = nil
+    ring.peer_count = 0
+    ring.real_peer_count = 0
+    ring.real_peers = make(map[string]bool)
     return ring
 }
 
@@ -56,6 +62,9 @@ func (r *nekoBackendRing) Insert(p *nekolib.NekodPeerInfo) {
         n.Prev = n
         n.Next = n
         r.Head = n
+        atomic.AddInt32(&r.peer_count, 1)
+        atomic.AddInt32(&r.real_peer_count, 1)
+        r.real_peers[n.RealName] = true
     } else if r.Head.Key >= n.Key {
         if r.Head.Name == n.Name {
             r.Head.nekodPeer.Close()
@@ -67,6 +76,11 @@ func (r *nekoBackendRing) Insert(p *nekolib.NekodPeerInfo) {
             next.Prev = n
             n.Prev = prev
             r.Head = n
+            atomic.AddInt32(&r.peer_count, 1)
+            if _, found := r.real_peers[n.RealName]; !found {
+                r.real_peers[n.RealName] = true
+                atomic.AddInt32(&r.real_peer_count, 1)
+            }
         }
     } else {
         var prev *nekoRingNode
@@ -83,6 +97,11 @@ func (r *nekoBackendRing) Insert(p *nekolib.NekodPeerInfo) {
         n.Next = next
         next.Prev = n
         n.Prev = prev
+        atomic.AddInt32(&r.peer_count, 1)
+        if _, found := r.real_peers[n.RealName]; !found {
+            r.real_peers[n.RealName] = true
+            atomic.AddInt32(&r.real_peer_count, 1)
+        }
     }
 
 }
@@ -127,6 +146,9 @@ func (r *nekoBackendRing) Remove(name string) {
             cur.Next.Prev = cur.Prev
             cur.Next = nil
             cur.Prev = nil
+            delete(r.real_peers, cur.Name)
+            atomic.AddInt32(&r.peer_count, -1)
+            atomic.AddInt32(&r.real_peer_count, -1)
             break
         }
         if cur.Next == r.Head {
@@ -143,6 +165,12 @@ func (r *nekoBackendRing) ForEach(op func(n *nekoRingNode)) {
             break
         }
     }
+}
+
+func (r *nekoBackendRing) ForEachSafe(op func(n *nekoRingNode)) {
+    r.m.Lock()
+    defer r.m.Unlock()
+    r.ForEach(op)
 }
 
 func (r *nekoBackendRing) Get(name string) (*nekoRingNode, bool) {

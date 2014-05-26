@@ -33,7 +33,7 @@ type nekoBackendServer struct {
 }
 
 func startNekoBackendServer(cfg *backendServerCfg) (error) {
-    srv := new(nekoBackendServer)
+    srv = new(nekoBackendServer)
     srv.cfg = cfg
     srv.ec = nil
     if err := srv.init(); err != nil {
@@ -43,16 +43,20 @@ func startNekoBackendServer(cfg *backendServerCfg) (error) {
     return nil
 }
 
+func getServer() *nekoBackendServer {
+    return srv
+}
+
 func (s *nekoBackendServer) setState(state int) {
     atomic.StoreUint32(&s.state, uint32(state))
     if s.ec != nil {
-        refreshPeer(s, nekolib.PEER_FLG_UPDATE)
+        refreshPeer(nekolib.PEER_FLG_UPDATE)
     }
 }
 
 func (s *nekoBackendServer) init() error {
     s.setState(nekolib.STATE_INIT)
-    if err := handleEtcd(s); err != nil {
+    if err := handleEtcd(); err != nil {
         return err
     }
     return nil

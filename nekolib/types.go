@@ -34,6 +34,9 @@ const (
     OP_NEW_SERIES
     OP_DELETE_SERIES
     OP_SERIES_INFO
+
+    OP_PING
+    OP_PONG
 )
 
 const (

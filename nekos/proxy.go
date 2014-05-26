@@ -22,7 +22,7 @@ import (
     "sync"
     zmq "github.com/pebbe/zmq4"
     "github.com/coreos/go-etcd/etcd"
-    // "github.com/bigeagle/nekodb/nekolib"
+    "github.com/bigeagle/nekodb/nekolib"
 )
 
 
@@ -32,6 +32,7 @@ type nekoServer struct {
     ec *etcd.Client
     peerChan, seriesChan chan *etcd.Response
     backends *nekoBackendRing
+    reqPools map[string]*nekolib.ReqPool
     collection *nekoCollection
 }
 
@@ -40,6 +41,7 @@ func startNekoServer(cfg *nekosConfig) (error) {
     srv.cfg = cfg
     srv.peerChan = make(chan *etcd.Response)
     srv.seriesChan = make(chan *etcd.Response)
+    srv.reqPools = make(map[string]*nekolib.ReqPool)
     srv.backends = newNekoBackendRing()
     srv.collection = newNekoCollection()
     if err := srv.init(); err != nil {
