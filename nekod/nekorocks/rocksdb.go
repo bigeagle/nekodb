@@ -18,91 +18,88 @@
 package nekorocks
 
 import (
-//    "os"
-    "sync"
-    // "encoding/binary"
-    "github.com/tecbot/gorocksdb"
+	//    "os"
+	"sync"
+	// "encoding/binary"
+	"github.com/tecbot/gorocksdb"
 )
 
-
 type RocksDB struct {
-    dbpath string
-    opt *gorocksdb.Options
-    db *gorocksdb.DB
-    m sync.RWMutex
+	dbpath string
+	opt    *gorocksdb.Options
+	db     *gorocksdb.DB
+	m      sync.RWMutex
 }
 
-
 func NewRocksDB(path string, opt *gorocksdb.Options) (*RocksDB, error) {
-    if opt == nil {
-        opt = gorocksdb.NewDefaultOptions()
-        opt.SetCreateIfMissing(true)
-    }
+	if opt == nil {
+		opt = gorocksdb.NewDefaultOptions()
+		opt.SetCreateIfMissing(true)
+	}
 
-    db, err := gorocksdb.OpenDb(opt, path)
-    if err != nil {
-        return nil, err
-    }
+	db, err := gorocksdb.OpenDb(opt, path)
+	if err != nil {
+		return nil, err
+	}
 
-    rdb := new(RocksDB)
-    rdb.dbpath = path
-    rdb.db = db
-    rdb.opt = opt
+	rdb := new(RocksDB)
+	rdb.dbpath = path
+	rdb.db = db
+	rdb.opt = opt
 
-    return rdb, nil
+	return rdb, nil
 }
 
 func (r *RocksDB) Get(key []byte) (*gorocksdb.Slice, error) {
-    ro := gorocksdb.NewDefaultReadOptions()
-    defer ro.Destroy()
-    return r.db.Get(ro, key)
+	ro := gorocksdb.NewDefaultReadOptions()
+	defer ro.Destroy()
+	return r.db.Get(ro, key)
 }
 
 func (r *RocksDB) Delete(key []byte) error {
-    wo := gorocksdb.NewDefaultWriteOptions()
-    defer wo.Destroy()
-    return r.db.Delete(wo, key)
+	wo := gorocksdb.NewDefaultWriteOptions()
+	defer wo.Destroy()
+	return r.db.Delete(wo, key)
 }
 
 func (r *RocksDB) Put(key, value []byte) error {
-    wo := gorocksdb.NewDefaultWriteOptions()
-    defer wo.Destroy()
-    err := r.db.Put(wo, key, value)
-    return err
+	wo := gorocksdb.NewDefaultWriteOptions()
+	defer wo.Destroy()
+	err := r.db.Put(wo, key, value)
+	return err
 }
 
 func (r *RocksDB) PutSync(key, value []byte) error {
-    wo := gorocksdb.NewDefaultWriteOptions()
-    defer wo.Destroy()
-    wo.SetSync(true)
-    return r.db.Put(wo, key, value)
+	wo := gorocksdb.NewDefaultWriteOptions()
+	defer wo.Destroy()
+	wo.SetSync(true)
+	return r.db.Put(wo, key, value)
 }
 
 func (r *RocksDB) Write(batch *gorocksdb.WriteBatch) error {
-    wo := gorocksdb.NewDefaultWriteOptions()
-    defer wo.Destroy()
-    return r.db.Write(wo, batch)
+	wo := gorocksdb.NewDefaultWriteOptions()
+	defer wo.Destroy()
+	return r.db.Write(wo, batch)
 }
 
 func (r *RocksDB) Merge(key, value []byte) error {
-    wo := gorocksdb.NewDefaultWriteOptions()
-    defer wo.Destroy()
-    return r.db.Merge(wo, key, value)
+	wo := gorocksdb.NewDefaultWriteOptions()
+	defer wo.Destroy()
+	return r.db.Merge(wo, key, value)
 }
 
 func (r *RocksDB) NewIterator() *gorocksdb.Iterator {
-    ro := gorocksdb.NewDefaultReadOptions()
-    defer ro.Destroy()
-    ro.SetFillCache(false)
-    return r.db.NewIterator(ro)
+	ro := gorocksdb.NewDefaultReadOptions()
+	defer ro.Destroy()
+	ro.SetFillCache(false)
+	return r.db.NewIterator(ro)
 }
 
 func (r *RocksDB) Destroy() error {
-    r.db.Close()
-    // os.RemoveAll(r.dbpath)
-    return gorocksdb.DestroyDb(r.dbpath, r.opt)
+	r.db.Close()
+	return gorocksdb.DestroyDb(r.dbpath, r.opt)
 }
 
 func (r *RocksDB) Close() {
-    r.db.Close()
+	r.db.Close()
 }

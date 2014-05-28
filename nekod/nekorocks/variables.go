@@ -18,9 +18,14 @@
 package nekorocks
 
 import (
-    gologging "github.com/bigeagle/go-logging"
+	"errors"
+
+	gologging "github.com/bigeagle/go-logging"
 )
 
-var logger *gologging.Logger
-var DB_PATH string
-
+var (
+	inited    bool = false
+	logger    *gologging.Logger
+	DB_PATH   string
+	NotInited = errors.New("Not Initialized")
+)

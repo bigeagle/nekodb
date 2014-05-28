@@ -15,19 +15,19 @@
  * Copyright (C) Justin Wong, 2014
  */
 
-package nekorocks
+package nekolib
 
 import (
-	gologging "github.com/bigeagle/go-logging"
-	"github.com/bigeagle/nekodb/nekolib"
+    "time"
 )
 
-func InitNekoRocks(dbpath string, _logger *gologging.Logger) {
-	DB_PATH = dbpath
-	if _logger != nil {
-		logger = _logger
-	} else {
-		logger = nekolib.GetLogger()
-	}
-	inited = true
+func Time2Bytes(t time.Time) []byte {
+    b, _ := t.MarshalBinary()
+    return b
+}
+
+func Bytes2Time(b []byte) (time.Time, error) {
+    t := new(time.Time)
+    err := t.UnmarshalBinary(b)
+    return *t, err
 }

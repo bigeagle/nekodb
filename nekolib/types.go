@@ -23,6 +23,7 @@ import (
     //  "github.com/bigeagle/nekodb/nekod/backend"
     "bytes"
     "errors"
+    "time"
     "encoding/binary"
 )
 
@@ -95,10 +96,29 @@ func (ns *NekoStrPack) String() string {
 }
 
 type NekodRecord struct {
-    Tsec uint32
-    Tmilli uint16
-    DLen uint16
+    Ts  time.Time
     Value []byte
+}
+
+func (r *NekodRecord) ToBytes() []byte {
+    buf := bytes.NewBuffer(make([]byte, 0, 32))
+    buf.Write(Time2Bytes(r.Ts))
+    buf.Write(r.Value)
+    return buf.Bytes()
+}
+
+func (r *NekodRecord) FromBytes(buf *bytes.Buffer) (err error) {
+    if buf.Len() <= 15 {
+        return InvalidPacket
+    }
+    lv := buf.Len() - 15
+    tsB := make([]byte, 15)
+    r.Value = make([]byte, lv)
+    buf.Read(tsB)
+    buf.Read(r.Value)
+    r.Ts, err = Bytes2Time(tsB)
+
+    return err
 }
 
 type NekodSeriesInfo struct {

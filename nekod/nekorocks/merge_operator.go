@@ -15,47 +15,46 @@
  * Copyright (C) Justin Wong, 2014
  */
 
-
 // Merge Operator Provides Atomic Updates
 package nekorocks
 
 import (
-    "encoding/binary"
-//     gorocksdb "github.com/tecbot/gorocksdb"
+	"encoding/binary"
+	//     gorocksdb "github.com/tecbot/gorocksdb"
 )
 
-type uint64AddOperator struct {}
+type uint64AddOperator struct{}
 
 func (u *uint64AddOperator) FullMerge(key, existingValue []byte,
-                                      operands [][]byte) ([]byte, bool) {
-    count := uint64(0)
-    value := []byte{0, 0, 0, 0, 0, 0, 0, 0}
-    if len(existingValue) != 0 {
-        if len(existingValue) != 8 {
-            return []byte{}, false
-        }
-        count = binary.BigEndian.Uint64(existingValue)
-    }
-    for _, o := range operands {
-        count += binary.BigEndian.Uint64(o)
-    }
-    binary.BigEndian.PutUint64(value, count)
-    return value, true
+	operands [][]byte) ([]byte, bool) {
+	count := uint64(0)
+	value := []byte{0, 0, 0, 0, 0, 0, 0, 0}
+	if len(existingValue) != 0 {
+		if len(existingValue) != 8 {
+			return []byte{}, false
+		}
+		count = binary.BigEndian.Uint64(existingValue)
+	}
+	for _, o := range operands {
+		count += binary.BigEndian.Uint64(o)
+	}
+	binary.BigEndian.PutUint64(value, count)
+	return value, true
 }
 
 func (u *uint64AddOperator) PartialMerge(
-    key, leftOperand, rightOperand []byte) ([]byte, bool) {
+	key, leftOperand, rightOperand []byte) ([]byte, bool) {
 
-    if len(leftOperand) == 8 && len(rightOperand) == 8 {
-        count := binary.BigEndian.Uint64(leftOperand) +
-                    binary.BigEndian.Uint64(rightOperand)
-        value := []byte{0, 0, 0, 0, 0, 0, 0, 0}
-        binary.BigEndian.PutUint64(value, count)
-        return value, true
-    }
-    return []byte{}, false
+	if len(leftOperand) == 8 && len(rightOperand) == 8 {
+		count := binary.BigEndian.Uint64(leftOperand) +
+			binary.BigEndian.Uint64(rightOperand)
+		value := []byte{0, 0, 0, 0, 0, 0, 0, 0}
+		binary.BigEndian.PutUint64(value, count)
+		return value, true
+	}
+	return []byte{}, false
 }
 
 func (u *uint64AddOperator) Name() string {
-    return "Uint64AddOperator"
+	return "Uint64AddOperator"
 }

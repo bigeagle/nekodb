@@ -16,11 +16,3 @@
  */
 
 package nekorocks
-
-import (
-    "path"
-)
-
-func getDBPath(id string) string {
-    return path.Join(DB_PATH, id)
-}
