@@ -61,7 +61,7 @@ func newMemorySeriesFrag(id string, options NekoBackendOptions) *memorySeriesFra
     msf.id = id
     msf.options = options
     msf.start = time.Unix(1<<63-1, 1<<63-1)
-    msf.end= time.Unix(0, 0)
+    msf.end = time.Unix(0, 0)
     msf.records = make([]*NekoRecord, 0, 128)
     return msf
 }

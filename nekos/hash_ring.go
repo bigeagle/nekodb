@@ -49,6 +49,8 @@ func newNekoBackendRing() *nekoBackendRing {
     return ring
 }
 
+
+// Insert a new nekodPeerInfo, if existed, replace it with a new one
 func (r *nekoBackendRing) Insert(p *nekolib.NekodPeerInfo) {
     n := new(nekoRingNode)
     np := newNekodPeerFromInfo(p)

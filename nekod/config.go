@@ -29,6 +29,7 @@ type backendServerCfg struct {
     Name string         `toml:"name"`
     Hostname string     `toml:"hostname"`
     Virtuals int        `toml:"virtuals"`
+    DataPath string     `toml:"data_path"`
     Debug bool          `toml:"debug"`
     EtcdPeers []string  `toml:"etcd_peers"`
 }
@@ -43,6 +44,7 @@ func loadConfig(cfgFile string, arguments []string) (*backendServerCfg, error) {
     cfg.MaxWorkers = 4
     cfg.Name = "nekod"
     cfg.Hostname = "localhost"
+    cfg.DataPath = "/var/lib/nekodb"
     cfg.Virtuals = 1
     cfg.Debug = false
 
@@ -60,6 +62,7 @@ func loadConfig(cfgFile string, arguments []string) (*backendServerCfg, error) {
     f.IntVar(&cfg.MaxWorkers, "max-workers", cfg.MaxWorkers, "Max worker threads")
     f.StringVar(&cfg.Name, "name", cfg.Name, "Peer Name")
     f.IntVar(&cfg.Virtuals, "virtuals", cfg.Virtuals, "Number of virtual nodes")
+    f.StringVar(&cfg.DataPath, "data-path", cfg.DataPath, "Path to store data")
     f.StringVar(&etcdPeers, "etcd-peers", "", "Etcd peers")
     f.BoolVar(&cfg.Debug, "debug", cfg.Debug, "Debug Mode")
 
