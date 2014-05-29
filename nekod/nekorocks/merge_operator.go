@@ -19,42 +19,49 @@
 package nekorocks
 
 import (
+	"bytes"
 	"encoding/binary"
+
 	//     gorocksdb "github.com/tecbot/gorocksdb"
 )
 
-type uint64AddOperator struct{}
+type int64AddOperator struct{}
 
-func (u *uint64AddOperator) FullMerge(key, existingValue []byte,
+func (u *int64AddOperator) FullMerge(key, existingValue []byte,
 	operands [][]byte) ([]byte, bool) {
-	count := uint64(0)
-	value := []byte{0, 0, 0, 0, 0, 0, 0, 0}
+	count := int64(0)
 	if len(existingValue) != 0 {
 		if len(existingValue) != 8 {
 			return []byte{}, false
 		}
-		count = binary.BigEndian.Uint64(existingValue)
+		binary.Read(bytes.NewReader(existingValue), binary.BigEndian, &count)
 	}
 	for _, o := range operands {
-		count += binary.BigEndian.Uint64(o)
+		var v int64
+		binary.Read(bytes.NewReader(o), binary.BigEndian, &v)
+		count += v
 	}
-	binary.BigEndian.PutUint64(value, count)
-	return value, true
+	buf := bytes.NewBuffer(make([]byte, 0, 8))
+	binary.Write(buf, binary.BigEndian, count)
+	return buf.Bytes(), true
 }
 
-func (u *uint64AddOperator) PartialMerge(
+func (u *int64AddOperator) PartialMerge(
 	key, leftOperand, rightOperand []byte) ([]byte, bool) {
 
 	if len(leftOperand) == 8 && len(rightOperand) == 8 {
-		count := binary.BigEndian.Uint64(leftOperand) +
-			binary.BigEndian.Uint64(rightOperand)
+		var l, r int64
+		binary.Read(bytes.NewReader(leftOperand), binary.BigEndian, &l)
+		binary.Read(bytes.NewReader(rightOperand), binary.BigEndian, &r)
+		count := l + r
 		value := []byte{0, 0, 0, 0, 0, 0, 0, 0}
-		binary.BigEndian.PutUint64(value, count)
+		buf := bytes.NewBuffer(value)
+		binary.Write(buf, binary.BigEndian, count)
 		return value, true
 	}
 	return []byte{}, false
 }
 
-func (u *uint64AddOperator) Name() string {
+func (u *int64AddOperator) Name() string {
 	return "Uint64AddOperator"
 }

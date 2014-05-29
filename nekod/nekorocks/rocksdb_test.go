@@ -107,7 +107,7 @@ func TestRocksdbBasic(t *testing.T) {
 func TestCounterDB(t *testing.T) {
 	dbpath := path.Join(os.TempDir(), "nekorocks_counter")
 	opts := gorocksdb.NewDefaultOptions()
-	opts.SetMergeOperator(new(uint64AddOperator))
+	opts.SetMergeOperator(new(int64AddOperator))
 	opts.SetCreateIfMissing(true)
 	opts.SetMaxSuccessiveMerges(10)
 

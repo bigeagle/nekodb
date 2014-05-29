@@ -18,6 +18,7 @@
 package nekorocks
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"os"
@@ -99,7 +100,7 @@ func GetSeries(id string) (*Series, error) {
 	}
 
 	mopts := NewDefaultOptions()
-	mopts.SetMergeOperator(new(uint64AddOperator))
+	mopts.SetMergeOperator(new(int64AddOperator))
 	mopts.SetCreateIfMissing(true)
 	mopts.SetMaxSuccessiveMerges(10)
 	mopts.SetPrefixExtractor(NewFixedPrefixTransform(SERIES_META_PREFIX_LEN)) // {srs_, elm_, key_}
@@ -161,18 +162,18 @@ func (s *Series) Insert(key, value []byte, priority uint8) error {
 	_value, _ := msgpack.Marshal(
 		map[string]interface{}{"v": value, "p": priority})
 	if err := s.data.Put(key, _value); err == nil {
-		s.addCount(uint64(1))
+		s.addCount(int64(1))
 		return nil
 	} else {
 		return err
 	}
 }
 
-func (s *Series) addCount(n uint64) error {
+func (s *Series) addCount(n int64) error {
 	key := []byte(KEY_SERIES_ELEM_COUNT)
-	step := make([]byte, 8)
-	binary.BigEndian.PutUint64(step, n)
-	return s.meta.Merge(key, step)
+	buf := bytes.NewBuffer(make([]byte, 0, 8))
+	binary.Write(buf, binary.BigEndian, n)
+	return s.meta.Merge(key, buf.Bytes())
 }
 
 func (s *Series) Destroy() error {
