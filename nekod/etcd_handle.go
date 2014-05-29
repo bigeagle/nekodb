@@ -17,59 +17,55 @@
 package main
 
 import (
-    "time"
-    "fmt"
-    "encoding/json"
-    "github.com/coreos/go-etcd/etcd"
-    "github.com/bigeagle/nekodb/nekolib"
+	"encoding/json"
+	"fmt"
+	"time"
+
+	"github.com/bigeagle/nekodb/nekolib"
+	"github.com/coreos/go-etcd/etcd"
 )
 
-
 func virtualName(name string, number int) string {
-    return fmt.Sprintf("%s-%d", name, number)
+	return fmt.Sprintf("%s-%d", name, number)
 }
 
-func refreshPeer(flag int) error {
-    s := getServer()
-    var vnode nekolib.NekodPeerInfo
-    logger.Debug("Refresh Peer Info")
-    for i := 0; i < s.cfg.Virtuals; i++ {
-        vname := virtualName(s.cfg.Name, i)
-        vnode.Name = vname
-        vnode.RealName = s.cfg.Name
-        vnode.Hostname = s.cfg.Hostname
-        vnode.Port = s.cfg.Port
-        vnode.State = int(s.state)
-        vnode.Flag = flag
+func (s *nekoBackendServer) refreshPeer(flag int) error {
+	var vnode nekolib.NekodPeerInfo
+	logger.Debug("Refresh Peer Info")
+	for i := 0; i < s.cfg.Virtuals; i++ {
+		vname := virtualName(s.cfg.Name, i)
+		vnode.Name = vname
+		vnode.RealName = s.cfg.Name
+		vnode.Hostname = s.cfg.Hostname
+		vnode.Port = s.cfg.Port
+		vnode.State = int(s.state)
+		vnode.Flag = flag
 
-        vn, _ := json.Marshal(vnode)
-        key := fmt.Sprintf("%s/%s", nekolib.ETCD_PEER_DIR, vname)
-        s.ec.Set(key, string(vn), nekolib.ETCD_REFRESH_INTERVAL)
-        logger.Debug("%s: %s", key, vn)
-    }
-    return nil
+		vn, _ := json.Marshal(vnode)
+		key := fmt.Sprintf("%s/%s", nekolib.ETCD_PEER_DIR, vname)
+		s.ec.Set(key, string(vn), nekolib.ETCD_REFRESH_INTERVAL)
+		logger.Debug("%s: %s", key, vn)
+	}
+	return nil
 }
 
-func handleEtcd() error {
-    s := getServer()
-    s.ec = etcd.NewClient(s.cfg.EtcdPeers)
-    _, err := s.ec.Get(nekolib.ETCD_DIR, true, true)
+func (s *nekoBackendServer) handleEtcd() error {
+	s.ec = etcd.NewClient(s.cfg.EtcdPeers)
+	_, err := s.ec.Get(nekolib.ETCD_DIR, true, true)
 
-    if err != nil {
-        logger.Error(err.Error())
-        return err
-    }
+	if err != nil {
+		logger.Error(err.Error())
+		return err
+	}
 
-    refreshPeer(nekolib.PEER_FLG_NEW)
-    go func() {
-        t :=  time.Tick((nekolib.ETCD_REFRESH_INTERVAL-5)*time.Second)
-        for {
-            <-t
-            refreshPeer(nekolib.PEER_FLG_KEEP)
-        }
-    }()
+	s.refreshPeer(nekolib.PEER_FLG_NEW)
+	go func() {
+		t := time.Tick((nekolib.ETCD_REFRESH_INTERVAL - 5) * time.Second)
+		for {
+			<-t
+			s.refreshPeer(nekolib.PEER_FLG_KEEP)
+		}
+	}()
 
-    return nil
+	return nil
 }
-
-

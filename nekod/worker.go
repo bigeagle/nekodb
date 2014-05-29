@@ -18,63 +18,67 @@
 package main
 
 import (
-    "bytes"
-    zmq "github.com/pebbe/zmq4"
-    "github.com/bigeagle/nekodb/nekolib"
+	"bytes"
+
+	"github.com/bigeagle/nekodb/nekolib"
+	zmq "github.com/pebbe/zmq4"
 )
 
 const workerAddr = "inproc://workers"
 
 type nekodWorker struct {
-    id int
-    srv *nekoBackendServer
-    sock *zmq.Socket
+	id   int
+	srv  *nekoBackendServer
+	sock *zmq.Socket
 }
 
 var ReqHandlerMap = map[uint8](func(*nekodWorker, []byte) error){
-    nekolib.OP_NEW_SERIES: ReqNewSeries,
-    nekolib.OP_PING: ReqPing,
+	nekolib.OP_NEW_SERIES: ReqNewSeries,
+	nekolib.OP_PING:       ReqPing,
 }
 
 func (w *nekodWorker) serveForever() {
-    for {
-        packBytes, _ := w.sock.RecvBytes(0)
-        // logger.Debug("%v", packBytes)
-        opcode := packBytes[0]
-        if handler, ok := ReqHandlerMap[uint8(opcode)]; ok {
-            handler(w, packBytes)
-        }
-    }
+	for {
+		packBytes, _ := w.sock.RecvBytes(0)
+		// logger.Debug("%v", packBytes)
+		opcode := packBytes[0]
+		if handler, ok := ReqHandlerMap[uint8(opcode)]; ok {
+			handler(w, packBytes)
+		}
+	}
 }
 
 func startWorker(id int, s *nekoBackendServer) {
-    w := new(nekodWorker)
-    w.id = id
-    w.srv = s
-    w.sock, _ = zmq.NewSocket(zmq.REP)
-    w.sock.Connect(workerAddr)
-    w.serveForever()
+	w := new(nekodWorker)
+	w.id = id
+	w.srv = s
+	w.sock, _ = zmq.NewSocket(zmq.REP)
+	w.sock.Connect(workerAddr)
+	w.serveForever()
 }
 
 func (w *nekodWorker) processRequest(packBytes []byte) {
-    logger.Debug("worker %d: %v", w.id, packBytes)
-    w.sock.Send("reply", 0)
+	logger.Debug("worker %d: %v", w.id, packBytes)
+	w.sock.Send("reply", 0)
 }
 
-
 func ReqNewSeries(w *nekodWorker, packBytes []byte) error {
-    series := new(nekolib.NekoSeriesInfo)
-    series.FromBytes(bytes.NewBuffer(packBytes[1:]))
-    // logger.Debug("%v", packBytes[1:])
-    logger.Debug("worker %d: %v", w.id, series)
-    w.sock.Send("reply", 0)
-    // newSeries(series.Name, series.Id, series.FragLevel)
-    return nil
+	sInfo := new(nekolib.NekoSeriesInfo)
+	sInfo.FromBytes(bytes.NewBuffer(packBytes[1:]))
+	// logger.Debug("%v", packBytes[1:])
+	logger.Debug("worker %d: %v", w.id, sInfo)
+
+	err := w.srv.NewSeries(sInfo.Name, sInfo.Id, sInfo.FragLevel)
+	if err != nil {
+		w.sock.Send("ERROR", 0)
+		return err
+	}
+	w.sock.Send("OK", 0)
+	return nil
 }
 
 func ReqPing(w *nekodWorker, packBytes []byte) error {
-    buf := []byte{byte(nekolib.OP_PONG)}
-    w.sock.SendBytes(buf, 0)
-    return nil
+	buf := []byte{byte(nekolib.OP_PONG)}
+	w.sock.SendBytes(buf, 0)
+	return nil
 }
-

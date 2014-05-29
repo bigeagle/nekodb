@@ -27,6 +27,7 @@ import (
 
 	"github.com/bigeagle/nekodb/nekolib"
 	. "github.com/tecbot/gorocksdb"
+	"github.com/vmihailenco/msgpack"
 )
 
 const (
@@ -58,7 +59,8 @@ type Series struct {
 	Name      string
 	Id        string
 	FragLevel int
-	dbpath    string
+
+	dbpath string
 }
 
 func NewSeries(name, id string, fragLevel int) (*Series, error) {
@@ -82,7 +84,7 @@ func GetSeries(id string) (*Series, error) {
 	if !inited {
 		return nil, NotInited
 	}
-
+	logger.Debug("Open series: %s", id)
 	var err error
 	s := new(Series)
 
@@ -234,6 +236,18 @@ func (s *Series) RangeOp(start, end []byte, priority uint8, op func(key, value [
 		v := iter.Value().Data()
 		op(cur, v)
 	}
+}
+
+func (s *Series) ReverseHash(h []byte, ts_start, ts_end []byte) error {
+	m := map[string]interface{}{
+		"ts_start": ts_start,
+		"ts_end":   ts_end,
+	}
+	value, _ := msgpack.Marshal(m)
+	key := bytes.NewBuffer(make([]byte, 0, SERIES_META_PREFIX_LEN+4))
+	key.Write([]byte(PREFIX_SERIES_KEY_MAP))
+	key.Write(h)
+	return s.meta.PutSync(h, value)
 }
 
 func (s *Series) addCount(n int64) error {
