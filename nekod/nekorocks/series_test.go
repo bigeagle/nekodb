@@ -26,7 +26,6 @@ import (
 
 	"github.com/bigeagle/nekodb/nekolib"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/vmihailenco/msgpack"
 )
 
 // "github.com/vmihailenco/msgpack"
@@ -73,15 +72,34 @@ func TestSeriesOperations(t *testing.T) {
 			words := make([]string, 0)
 			for iter.SeekToFirst(); iter.Valid(); iter.Next() {
 				slice := iter.Value()
-				value := map[string]interface{}{}
-				err = msgpack.Unmarshal(slice.Data(), &value)
-				So(err, ShouldBeNil)
-				v := value["v"].(string)
+				v := slice.Data()
 				So(len(v), ShouldNotEqual, 0)
 				words = append(words, string(v))
 			}
 			So(strings.Join(words, " "), ShouldEqual, "Hello World")
 
+		})
+
+		Convey("Batch Job Should Run", func() {
+			records := make([]Record, 0)
+
+			key := nekolib.Time2Bytes(time.Now())
+			value := []byte("Hello")
+			r := Record{key, value}
+			records = append(records, r)
+
+			time.Sleep(100 * time.Millisecond)
+			key = nekolib.Time2Bytes(time.Now())
+			value = []byte("World")
+			r = Record{key, value}
+			records = append(records, r)
+
+			err := series.InsertBatch(records, 0)
+			So(err, ShouldBeNil)
+
+			count, err := series.Count()
+			So(err, ShouldBeNil)
+			So(count, ShouldEqual, 4)
 		})
 
 		Convey("Series should be destroyed", func() {

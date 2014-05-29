@@ -96,7 +96,7 @@ func (r *RocksDB) NewIterator() *gorocksdb.Iterator {
 }
 
 func (r *RocksDB) Destroy() error {
-	r.db.Close()
+	r.Close()
 	return gorocksdb.DestroyDb(r.dbpath, r.opt)
 }
 

@@ -26,12 +26,12 @@ import (
 	"sync"
 
 	. "github.com/tecbot/gorocksdb"
-	"github.com/vmihailenco/msgpack"
 )
 
 const (
 	TS_KEY_LEN             = 15
 	SERIES_META_PREFIX_LEN = 4
+	SERIES_KEY_PREFIX_LEN  = 1
 	KEY_SERIES_NAME        = "srs_name"
 	KEY_SERIES_ID          = "srs_id"
 	KEY_SERIES_FRAG_LEVEL  = "srs_fragLevel"
@@ -42,6 +42,11 @@ const (
 var (
 	InvalidTimestamp = errors.New("Invalid Binary Timestamp")
 )
+
+type Record struct {
+	Key   []byte
+	Value []byte
+}
 
 type Series struct {
 	m sync.RWMutex
@@ -91,6 +96,7 @@ func GetSeries(id string) (*Series, error) {
 	opts := NewDefaultOptions()
 	// opts.SetBlockCache(NewLRUCache(4<<30)) // 4MB cache
 	// opts.SetPrefixExtractor(NewFixedPrefixTransform(5)) // {data_, meta_}
+	opts.SetPrefixExtractor(NewFixedPrefixTransform(SERIES_KEY_PREFIX_LEN)) // {0, 1, 2, 3, ..., 255}
 	opts.SetFilterPolicy(NewBloomFilter(10))
 	opts.SetCreateIfMissing(true)
 
@@ -154,15 +160,39 @@ func (s *Series) Count() (int, error) {
 	return int(binary.BigEndian.Uint64(bcount.Data())), nil
 }
 
+func (s *Series) marshalKey(key []byte, priority uint8) []byte {
+	buf := bytes.NewBuffer(make([]byte, 0, SERIES_KEY_PREFIX_LEN+TS_KEY_LEN))
+	buf.WriteByte(byte(priority))
+	buf.Write(key)
+	return buf.Bytes()
+}
+
 func (s *Series) Insert(key, value []byte, priority uint8) error {
 	if len(key) != TS_KEY_LEN {
 		return InvalidTimestamp
 	}
 
-	_value, _ := msgpack.Marshal(
-		map[string]interface{}{"v": value, "p": priority})
-	if err := s.data.Put(key, _value); err == nil {
+	key = s.marshalKey(key, priority)
+	if err := s.data.Put(key, value); err == nil {
 		s.addCount(int64(1))
+		return nil
+	} else {
+		return err
+	}
+}
+
+func (s *Series) InsertBatch(records []Record, priority uint8) error {
+	batch := NewWriteBatch()
+	for _, r := range records {
+		if len(r.Key) != TS_KEY_LEN {
+			return InvalidTimestamp
+		}
+		key := s.marshalKey(r.Key, priority)
+		batch.Put(key, r.Value)
+	}
+
+	if err := s.data.Write(batch); err == nil {
+		s.addCount(int64(len(records)))
 		return nil
 	} else {
 		return err

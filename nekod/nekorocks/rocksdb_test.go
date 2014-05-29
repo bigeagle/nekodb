@@ -126,7 +126,7 @@ func TestCounterDB(t *testing.T) {
 				go func() { db.Merge(key, step) }()
 			}
 
-			time.Sleep(200 * time.Millisecond)
+			time.Sleep(40 * time.Millisecond)
 
 			slice, err := db.Get(key)
 			So(err, ShouldBeNil)
