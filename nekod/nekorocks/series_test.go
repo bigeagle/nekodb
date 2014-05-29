@@ -66,40 +66,43 @@ func TestSeriesOperations(t *testing.T) {
 			So(count, ShouldEqual, 2)
 		})
 
-		Convey("Iteration Should Get Hello World", func() {
-			iter := series.data.NewIterator()
-			defer iter.Close()
-			words := make([]string, 0)
-			for iter.SeekToFirst(); iter.Valid(); iter.Next() {
-				slice := iter.Value()
-				v := slice.Data()
-				So(len(v), ShouldNotEqual, 0)
-				words = append(words, string(v))
-			}
-			So(strings.Join(words, " "), ShouldEqual, "Hello World")
-
-		})
-
 		Convey("Batch Job Should Run", func() {
 			records := make([]Record, 0)
 
 			key := nekolib.Time2Bytes(time.Now())
-			value := []byte("Hello")
+			value := []byte("Foo")
 			r := Record{key, value}
 			records = append(records, r)
 
 			time.Sleep(100 * time.Millisecond)
 			key = nekolib.Time2Bytes(time.Now())
-			value = []byte("World")
+			value = []byte("Bar")
 			r = Record{key, value}
 			records = append(records, r)
 
-			err := series.InsertBatch(records, 0)
+			err := series.InsertBatch(records, 1)
 			So(err, ShouldBeNil)
 
 			count, err := series.Count()
 			So(err, ShouldBeNil)
 			So(count, ShouldEqual, 4)
+		})
+
+		Convey("Iteration Should Get Hello World", func() {
+
+			const shortForm = "2006-Jan-02"
+			startTs, _ := time.Parse(shortForm, "1970-Jan-01")
+			endTs := time.Now().Add(10 * time.Second)
+			start := nekolib.Time2Bytes(startTs)
+			end := nekolib.Time2Bytes(endTs)
+
+			words := make([]string, 0)
+			series.RangeOp(start, end, 0, func(key, value []byte) {
+				So(len(value), ShouldNotEqual, 0)
+				words = append(words, string(value))
+			})
+
+			So(strings.Join(words, " "), ShouldEqual, "Hello World")
 		})
 
 		Convey("Series should be destroyed", func() {

@@ -25,6 +25,7 @@ import (
 	"path"
 	"sync"
 
+	"github.com/bigeagle/nekodb/nekolib"
 	. "github.com/tecbot/gorocksdb"
 )
 
@@ -167,6 +168,10 @@ func (s *Series) marshalKey(key []byte, priority uint8) []byte {
 	return buf.Bytes()
 }
 
+func (s *Series) unmarshalKey(_key []byte) []byte {
+	return _key[SERIES_KEY_PREFIX_LEN:]
+}
+
 func (s *Series) Insert(key, value []byte, priority uint8) error {
 	if len(key) != TS_KEY_LEN {
 		return InvalidTimestamp
@@ -183,6 +188,7 @@ func (s *Series) Insert(key, value []byte, priority uint8) error {
 
 func (s *Series) InsertBatch(records []Record, priority uint8) error {
 	batch := NewWriteBatch()
+	defer batch.Destroy()
 	for _, r := range records {
 		if len(r.Key) != TS_KEY_LEN {
 			return InvalidTimestamp
@@ -196,6 +202,37 @@ func (s *Series) InsertBatch(records []Record, priority uint8) error {
 		return nil
 	} else {
 		return err
+	}
+}
+
+func (s *Series) RangeOp(start, end []byte, priority uint8, op func(key, value []byte)) {
+	endTs, _ := nekolib.Bytes2Time(end)
+
+	start = s.marshalKey(start, priority)
+	end = s.marshalKey(end, priority)
+
+	iter := s.data.NewIterator()
+	defer iter.Close()
+	for iter.Seek(start); iter.Valid(); iter.Next() {
+		key := iter.Key().Data()
+		// Continue if invalid key
+		if len(key) != TS_KEY_LEN+SERIES_KEY_PREFIX_LEN {
+			continue
+		}
+		// Stop if passed prefix
+		if key[0] != byte(priority) {
+			break
+		}
+
+		cur := s.unmarshalKey(key)
+
+		// stop if went after end
+		curTs, _ := nekolib.Bytes2Time(cur)
+		if curTs.After(endTs) {
+			break
+		}
+		v := iter.Value().Data()
+		op(cur, v)
 	}
 }
 
