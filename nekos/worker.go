@@ -86,6 +86,6 @@ func ReqImportSeries(w *nekoWorker, packBytes []byte) error {
 func ReqFindByRange(w *nekoWorker, packBytes []byte) error {
 	reqHdr := new(nekolib.ReqFindByRangeHdr)
 	reqHdr.FromBytes(bytes.NewBuffer(packBytes[1:]))
-	logger.Debug("Find By Range Request: %#v", *reqHdr)
+	// logger.Debug("Find By Range Request: %#v", *reqHdr)
 	return findByRange(reqHdr, w.sock)
 }

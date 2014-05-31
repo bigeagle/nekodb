@@ -182,15 +182,19 @@ func findByRange(reqHdr *nekolib.ReqFindByRangeHdr, sock *zmq.Socket) error {
 	buf.Write(reqHdr.ToBytes())
 	reqMsg := buf.Bytes()
 
-	recordChan := make(chan *nekolib.NekodRecord, 256)
+	newRecord := make(chan struct{})
+	sortedBuffer := newBufferList()
 	done := make(chan struct{})
 	go func() {
 		sock.SendBytes(
 			nekolib.MakeResponse(nekolib.REP_ACK, "Starting Query"),
 			zmq.SNDMORE,
 		)
-		for record := range recordChan {
-			sock.SendBytes(record.ToBytes(), zmq.SNDMORE)
+		for _ = range newRecord {
+			records := sortedBuffer.pop()
+			for _, record := range records {
+				sock.SendBytes(record.ToBytes(), zmq.SNDMORE)
+			}
 		}
 		sock.SendBytes([]byte{0, 0}, zmq.SNDMORE)
 		logger.Debug("Sending Stream End")
@@ -227,6 +231,7 @@ func findByRange(reqHdr *nekolib.ReqFindByRangeHdr, sock *zmq.Socket) error {
 							return err
 						}
 
+						records := make([]*nekolib.NekodRecord, 0, 32)
 						for buf := bytes.NewBuffer(msg); buf.Len() > 0; {
 							r := new(nekolib.NekodRecord)
 							if err := r.FromBytes(buf); err != nil {
@@ -237,8 +242,10 @@ func findByRange(reqHdr *nekolib.ReqFindByRangeHdr, sock *zmq.Socket) error {
 								return err
 							}
 							// logger.Debug("%#v", r)
-							recordChan <- r
+							records = append(records, r)
 						}
+						sortedBuffer.push(records)
+						newRecord <- struct{}{}
 					}
 					msg, _ := psock.RecvBytes(0)
 					if uint8(msg[0]) != nekolib.REP_OK {
@@ -253,7 +260,7 @@ func findByRange(reqHdr *nekolib.ReqFindByRangeHdr, sock *zmq.Socket) error {
 	})
 
 	wg.Wait()
-	close(recordChan)
+	close(newRecord)
 	<-done
 	logger.Debug("Done")
 	return nil
