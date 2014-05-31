@@ -33,8 +33,9 @@ type nekodWorker struct {
 }
 
 var ReqHandlerMap = map[uint8](func(*nekodWorker, []byte) error){
-	nekolib.OP_NEW_SERIES: ReqNewSeries,
-	nekolib.OP_PING:       ReqPing,
+	nekolib.OP_NEW_SERIES:   ReqNewSeries,
+	nekolib.OP_PING:         ReqPing,
+	nekolib.OP_INSERT_BATCH: ReqInsertBatch,
 }
 
 func (w *nekodWorker) serveForever() {
@@ -74,6 +75,51 @@ func ReqNewSeries(w *nekodWorker, packBytes []byte) error {
 		return err
 	}
 	w.sock.Send("OK", 0)
+	return nil
+}
+
+func ReqInsertBatch(w *nekodWorker, packBytes []byte) error {
+	var reqHdr nekolib.ReqInsertBlockHdr
+
+	buf := bytes.NewBuffer(packBytes[1:])
+	err := (&reqHdr).FromBytes(buf)
+	if err != nil {
+		w.sock.SendBytes(
+			nekolib.MakeResponse(nekolib.REP_ERR, err.Error()), 0)
+		logger.Error(err.Error())
+		return err
+	}
+
+	series, _ := w.srv.GetSeries(reqHdr.SeriesName)
+	series.ReverseHash(reqHdr.HashValue, reqHdr.StartTs, reqHdr.EndTs)
+
+	for more, _ := w.sock.GetRcvmore(); more; more, _ = w.sock.GetRcvmore() {
+		msg, err := w.sock.RecvBytes(0)
+		if err != nil {
+			w.sock.SendBytes(
+				nekolib.MakeResponse(
+					nekolib.REP_ERR, "Error receiving message"), 0)
+			logger.Error(err.Error())
+			return err
+		}
+		records := make([]*nekolib.NekodRecord, 0)
+
+		for buf := bytes.NewBuffer(msg); buf.Len() > 0; {
+			r := new(nekolib.NekodRecord)
+			r.FromBytes(buf)
+			records = append(records, r)
+		}
+
+		err = series.InsertBatch(records, reqHdr.Priority)
+		if err != nil {
+			w.sock.SendBytes(
+				nekolib.MakeResponse(nekolib.REP_ERR, err.Error()), 0)
+			logger.Error(err.Error())
+			return err
+		}
+	}
+	w.sock.SendBytes(
+		nekolib.MakeResponse(nekolib.REP_OK, "Success"), 0)
 	return nil
 }
 

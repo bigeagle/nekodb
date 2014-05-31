@@ -15,166 +15,275 @@
  * Copyright (C) Justin Wong, 2014
  */
 
-
 package nekolib
 
 import (
-    // "fmt"
-    //  "github.com/bigeagle/nekodb/nekod/backend"
-    "bytes"
-    "errors"
-    "time"
-    "encoding/binary"
+	// "fmt"
+	//  "github.com/bigeagle/nekodb/nekod/backend"
+	"bytes"
+	"encoding/binary"
+	"errors"
 )
 
 const (
-    OP_FIND uint8 = iota
-    OP_INSERT
-    OP_DELETE
+	OP_FIND uint8 = iota
+	OP_INSERT
+	OP_INSERT_BATCH
+	OP_DELETE
 
-    OP_NEW_SERIES
-    OP_DELETE_SERIES
-    OP_SERIES_INFO
+	OP_NEW_SERIES
+	OP_IMPORT_SERIES
+	OP_DELETE_SERIES
+	OP_SERIES_INFO
 
-    OP_PING
-    OP_PONG
+	OP_PING
+	OP_PONG
+
+	REP_OK
+	REP_ERR
 )
 
 const (
-    STATE_INIT int = iota
-    STATE_READY
-    STATE_RECOVERING
-    STATE_SYNCING
+	STATE_INIT int = iota
+	STATE_READY
+	STATE_RECOVERING
+	STATE_SYNCING
 )
 
 const (
-    PEER_FLG_KEEP int = iota
-    PEER_FLG_UPDATE
-    PEER_FLG_NEW
-    PEER_FLG_RESET
+	PEER_FLG_KEEP int = iota
+	PEER_FLG_UPDATE
+	PEER_FLG_NEW
+	PEER_FLG_RESET
 )
 
 type BytePacket interface {
-    ToBytes() []byte
+	ToBytes() []byte
 }
 
 var InvalidPacket = errors.New("Invalid Packet")
+var EndOfStream = errors.New("End Of Stream")
 
 type NekodMsgHeader struct {
-    Opcode uint8
+	Opcode uint8
+}
+
+type NekoReplyHeader struct {
+	RepCode uint8
 }
 
 type NekoStrPack struct {
-    Len uint16
-    Bytes []byte
+	Len   uint16
+	Bytes []byte
 }
 
 func NekoString(s string) *NekoStrPack {
-    return &NekoStrPack{uint16(len(s)), []byte(s)}
+	return &NekoStrPack{uint16(len(s)), []byte(s)}
 }
 
 func (ns *NekoStrPack) ToBytes() []byte {
-    buf := bytes.NewBuffer(make([]byte, 0, 16))
-    binary.Write(buf, binary.BigEndian, ns.Len)
-    buf.Write(ns.Bytes)
-    return buf.Bytes()
+	buf := bytes.NewBuffer(make([]byte, 0, 16))
+	binary.Write(buf, binary.BigEndian, ns.Len)
+	buf.Write(ns.Bytes)
+	return buf.Bytes()
 }
 
 func (ns *NekoStrPack) FromBytes(buf *bytes.Buffer) error {
-    binary.Read(buf, binary.BigEndian, &ns.Len)
-    ns.Bytes = make([]byte, ns.Len)
-    i, _ := buf.Read(ns.Bytes)
-    if i != int(ns.Len) {
-        return InvalidPacket
-    }
-    // fmt.Println(ns.Bytes)
-    return nil
+	binary.Read(buf, binary.BigEndian, &ns.Len)
+	ns.Bytes = make([]byte, ns.Len)
+	i, _ := buf.Read(ns.Bytes)
+	if i != int(ns.Len) {
+		return InvalidPacket
+	}
+	// fmt.Println(ns.Bytes)
+	return nil
 }
 
 func (ns *NekoStrPack) String() string {
-    return string(ns.Bytes)
+	return string(ns.Bytes)
 }
 
 type NekodRecord struct {
-    Ts  time.Time
-    Value []byte
+	Ts    []byte // 15bytes, Go built-in time binary serialization
+	Value []byte
 }
 
 func (r *NekodRecord) ToBytes() []byte {
-    buf := bytes.NewBuffer(make([]byte, 0, 32))
-    buf.Write(Time2Bytes(r.Ts))
-    buf.Write(r.Value)
-    return buf.Bytes()
+	buf := bytes.NewBuffer(make([]byte, 0, 32))
+
+	binary.Write(buf, binary.BigEndian, uint16(15+len(r.Value)))
+	buf.Write(r.Ts)
+	buf.Write(r.Value)
+
+	return buf.Bytes()
 }
 
 func (r *NekodRecord) FromBytes(buf *bytes.Buffer) (err error) {
-    if buf.Len() <= 15 {
-        return InvalidPacket
-    }
-    lv := buf.Len() - 15
-    tsB := make([]byte, 15)
-    r.Value = make([]byte, lv)
-    buf.Read(tsB)
-    buf.Read(r.Value)
-    r.Ts, err = Bytes2Time(tsB)
+	var l uint16
+	binary.Read(buf, binary.BigEndian, &l)
+	if l == 0 {
+		return EndOfStream
+	}
+	if l <= 15 {
+		return InvalidPacket
+	}
+	lv := l - 15
+	r.Ts = make([]byte, 15)
+	r.Value = make([]byte, lv)
+	buf.Read(r.Ts)
+	buf.Read(r.Value)
 
-    return err
+	return err
 }
 
 type NekodSeriesInfo struct {
-    Name NekoStrPack
-    Count uint64
+	Name  NekoStrPack
+	Count uint64
 }
-
 
 type NekodPeerInfo struct {
-    Name string `json:"name"`
-    RealName string `json:"real_name"`
-    Hostname string `json:"hostname"`
-    Port int `json:"port"`
-    State int `json:"state"`
-    Flag  int `json:"flag"`
+	Name     string `json:"name"`
+	RealName string `json:"real_name"`
+	Hostname string `json:"hostname"`
+	Port     int    `json:"port"`
+	State    int    `json:"state"`
+	Flag     int    `json:"flag"`
 }
 
-
 type NekoSeriesInfo struct {
-    // series name, used for query
-    Name string   `json:"name"`
-    // unmutable unique id, used for storage
-    Id string     `json:"id"`
-    // fragmentation level
-    FragLevel int `json:"frag_level"`
+	// series name, used for query
+	Name string `json:"name"`
+	// unmutable unique id, used for storage
+	Id string `json:"id"`
+	// fragmentation level
+	FragLevel int `json:"frag_level"`
 }
 
 func (ns *NekoSeriesInfo) ToBytes() []byte {
-    buf := bytes.NewBuffer(make([]byte, 0, 16))
-    // fmt.Println(NekoString(ns.Name).ToBytes())
-    buf.Write(NekoString(ns.Name).ToBytes())
-    buf.Write(NekoString(ns.Id).ToBytes())
-    binary.Write(buf, binary.BigEndian, uint8(ns.FragLevel))
-    return buf.Bytes()
+	buf := bytes.NewBuffer(make([]byte, 0, 16))
+	// fmt.Println(NekoString(ns.Name).ToBytes())
+	buf.Write(NekoString(ns.Name).ToBytes())
+	buf.Write(NekoString(ns.Id).ToBytes())
+	binary.Write(buf, binary.BigEndian, uint8(ns.FragLevel))
+	return buf.Bytes()
 }
 
 func (ns *NekoSeriesInfo) FromBytes(buf *bytes.Buffer) error {
-    name := new(NekoStrPack)
-    if err := name.FromBytes(buf); err == nil {
-        ns.Name = name.String()
-    } else {
-        return err
-    }
+	name := new(NekoStrPack)
+	if err := name.FromBytes(buf); err == nil {
+		ns.Name = name.String()
+	} else {
+		return err
+	}
 
-    id := new(NekoStrPack)
-    if err := id.FromBytes(buf); err == nil {
-       ns.Id = id.String()
-    } else {
-        return err
-    }
+	id := new(NekoStrPack)
+	if err := id.FromBytes(buf); err == nil {
+		ns.Id = id.String()
+	} else {
+		return err
+	}
 
-    fragLevel := uint8(0)
-    if err := binary.Read(buf, binary.BigEndian, &fragLevel); err == nil {
-        ns.FragLevel = int(fragLevel)
-    } else {
-        return err
-    }
-    return nil
+	fragLevel := uint8(0)
+	if err := binary.Read(buf, binary.BigEndian, &fragLevel); err == nil {
+		ns.FragLevel = int(fragLevel)
+	} else {
+		return err
+	}
+	return nil
+}
+
+type ReqImportSeriesHdr struct {
+	SeriesName string
+}
+
+func (r *ReqImportSeriesHdr) ToBytes() []byte {
+	buf := bytes.NewBuffer(make([]byte, 0, 16))
+	sn := NekoString(r.SeriesName)
+	buf.Write(sn.ToBytes())
+	return buf.Bytes()
+}
+
+func (r *ReqImportSeriesHdr) FromBytes(buf *bytes.Buffer) error {
+	sn := new(NekoStrPack)
+	if err := sn.FromBytes(buf); err == nil {
+		r.SeriesName = sn.String()
+	} else {
+		return err
+	}
+	return nil
+}
+
+type ReqInsertBlockHdr struct {
+	SeriesName string
+	HashValue  uint32
+	StartTs    []byte
+	EndTs      []byte
+	Priority   uint8
+	Count      uint16
+}
+
+func (r *ReqInsertBlockHdr) ToBytes() []byte {
+	buf := bytes.NewBuffer(make([]byte, 0, 32))
+	sn := NekoString(r.SeriesName)
+	buf.Write(sn.ToBytes())
+	binary.Write(buf, binary.BigEndian, r.HashValue)
+	// if len(r.StartTs) != 15 {
+	// 	return []byte{}, InvalidPacket
+	// }
+	// if len(r.EndTs) != 15 {
+	// 	return []byte{}, InvalidPacket
+	// }
+	buf.Write(r.StartTs)
+	buf.Write(r.EndTs)
+	binary.Write(buf, binary.BigEndian, r.Priority)
+	binary.Write(buf, binary.BigEndian, r.Count)
+	return buf.Bytes()
+}
+
+func (r *ReqInsertBlockHdr) FromBytes(buf *bytes.Buffer) error {
+	sn := new(NekoStrPack)
+	if err := sn.FromBytes(buf); err == nil {
+		r.SeriesName = sn.String()
+	} else {
+		return err
+	}
+
+	binary.Read(buf, binary.BigEndian, &r.HashValue)
+
+	r.StartTs = make([]byte, 15)
+	l, err := buf.Read(r.StartTs)
+	if l != 15 {
+		return InvalidPacket
+	}
+	if err != nil {
+		return err
+	}
+
+	r.EndTs = make([]byte, 15)
+	l, err = buf.Read(r.EndTs)
+	if l != 15 {
+		return InvalidPacket
+	}
+	if err != nil {
+		return err
+	}
+
+	binary.Read(buf, binary.BigEndian, &r.Priority)
+	binary.Read(buf, binary.BigEndian, &r.Count)
+
+	return nil
+}
+
+func MakeResponse(code uint8, msg interface{}) []byte {
+	buf := bytes.NewBuffer(make([]byte, 0, 16))
+	buf.WriteByte(byte(code))
+	switch v := msg.(type) {
+	case string:
+		buf.Write([]byte(v))
+	case []byte:
+		buf.Write(v)
+	case byte:
+		buf.WriteByte(v)
+	}
+	return buf.Bytes()
 }

@@ -34,13 +34,13 @@ import (
 
 type nekoBackendServer struct {
 	m          sync.RWMutex
-	cfg        *backendServerCfg
+	cfg        *Config
 	ec         *etcd.Client
 	state      uint32
 	seriesColl map[string]*nekorocks.Series
 }
 
-func startNekoBackendServer(cfg *backendServerCfg) error {
+func startNekoBackendServer(cfg *Config) error {
 	srv = new(nekoBackendServer)
 	srv.cfg = cfg
 	srv.ec = nil
@@ -121,10 +121,12 @@ func (s *nekoBackendServer) initSeries() error {
 					}
 				} else if stat.IsDir() {
 					// If DBPath presented, init from series files
-					series, err = nekorocks.GetSeries(sInfo.Id)
-					if err != nil {
-						logger.Error(err.Error())
-						return err
+					if sInfo.Id != "" {
+						series, err = nekorocks.GetSeries(sInfo.Id)
+						if err != nil {
+							logger.Error(err.Error())
+							return err
+						}
 					}
 				} else {
 					return fmt.Errorf("Invalid DB Directory: %s", dbpath)

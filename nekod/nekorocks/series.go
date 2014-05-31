@@ -45,11 +45,6 @@ var (
 	InvalidTimestamp = errors.New("Invalid Binary Timestamp")
 )
 
-type Record struct {
-	Key   []byte
-	Value []byte
-}
-
 type Series struct {
 	m sync.RWMutex
 
@@ -188,14 +183,14 @@ func (s *Series) Insert(key, value []byte, priority uint8) error {
 	}
 }
 
-func (s *Series) InsertBatch(records []Record, priority uint8) error {
+func (s *Series) InsertBatch(records []*nekolib.NekodRecord, priority uint8) error {
 	batch := NewWriteBatch()
 	defer batch.Destroy()
 	for _, r := range records {
-		if len(r.Key) != TS_KEY_LEN {
+		if len(r.Ts) != TS_KEY_LEN {
 			return InvalidTimestamp
 		}
-		key := s.marshalKey(r.Key, priority)
+		key := s.marshalKey(r.Ts, priority)
 		batch.Put(key, r.Value)
 	}
 
@@ -238,7 +233,7 @@ func (s *Series) RangeOp(start, end []byte, priority uint8, op func(key, value [
 	}
 }
 
-func (s *Series) ReverseHash(h []byte, ts_start, ts_end []byte) error {
+func (s *Series) ReverseHash(h uint32, ts_start, ts_end []byte) error {
 	m := map[string]interface{}{
 		"ts_start": ts_start,
 		"ts_end":   ts_end,
@@ -246,8 +241,8 @@ func (s *Series) ReverseHash(h []byte, ts_start, ts_end []byte) error {
 	value, _ := msgpack.Marshal(m)
 	key := bytes.NewBuffer(make([]byte, 0, SERIES_META_PREFIX_LEN+4))
 	key.Write([]byte(PREFIX_SERIES_KEY_MAP))
-	key.Write(h)
-	return s.meta.PutSync(h, value)
+	binary.Write(key, binary.BigEndian, h)
+	return s.meta.PutSync(key.Bytes(), value)
 }
 
 func (s *Series) addCount(n int64) error {

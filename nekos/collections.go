@@ -17,60 +17,59 @@
 
 package main
 
-
 import (
-//    "fmt"
-    "sync"
-    "strings"
-    // zmq "github.com/pebbe/zmq4"
-    // "github.com/coreos/go-etcd/etcd"
-    "github.com/bigeagle/nekodb/nekolib"
+	//    "fmt"
+	"strings"
+	"sync"
+	// zmq "github.com/pebbe/zmq4"
+	// "github.com/coreos/go-etcd/etcd"
+	"github.com/bigeagle/nekodb/nekolib"
 )
 
 type nekoSeries struct {
-    nekolib.NekoSeriesInfo
+	nekolib.NekoSeriesInfo
 }
 
 type nekoCollection struct {
-    m sync.RWMutex
-    coll map[string]*nekoSeries
+	m    sync.RWMutex
+	coll map[string]*nekoSeries
 }
 
 func newNekoCollection() *nekoCollection {
-    c := new(nekoCollection)
-    c.coll = make(map[string]*nekoSeries)
-    return c
+	c := new(nekoCollection)
+	c.coll = make(map[string]*nekoSeries)
+	return c
 }
 
 func (c *nekoCollection) insertSeries_unsafe(series *nekoSeries) {
-    c.coll[series.Name] = series
+	c.coll[series.Name] = series
 }
 
 func (c *nekoCollection) insertSeries(series *nekoSeries) {
-    c.m.Lock()
-    defer c.m.Unlock()
-    c.insertSeries_unsafe(series)
+	c.m.Lock()
+	defer c.m.Unlock()
+	c.insertSeries_unsafe(series)
 }
 
 func (c *nekoCollection) removeSeries(sname string) {
-    c.m.Lock()
-    defer c.m.Unlock()
-    delete(c.coll, sname)
+	c.m.Lock()
+	defer c.m.Unlock()
+	delete(c.coll, sname)
 }
 
 func (c *nekoCollection) getSeries(sname string) (*nekoSeries, bool) {
-    c.m.RLock()
-    defer c.m.Unlock()
-    s, ok := c.coll[sname]
-    return s, ok
+	c.m.RLock()
+	defer c.m.RUnlock()
+	s, ok := c.coll[sname]
+	return s, ok
 }
 
 func (c *nekoCollection) String() string {
-    c.m.RLock()
-    defer c.m.RUnlock()
-    series := make([]string, 0)
-    for sname, _ := range c.coll {
-        series = append(series, sname)
-    }
-    return strings.Join(series, ",")
+	c.m.RLock()
+	defer c.m.RUnlock()
+	series := make([]string, 0)
+	for sname, _ := range c.coll {
+		series = append(series, sname)
+	}
+	return strings.Join(series, ",")
 }

@@ -67,17 +67,17 @@ func TestSeriesOperations(t *testing.T) {
 		})
 
 		Convey("Batch Job Should Run", func() {
-			records := make([]Record, 0)
+			records := make([]*nekolib.NekodRecord, 0)
 
 			key := nekolib.Time2Bytes(time.Now())
 			value := []byte("Foo")
-			r := Record{key, value}
+			r := &nekolib.NekodRecord{key, value}
 			records = append(records, r)
 
 			time.Sleep(100 * time.Millisecond)
 			key = nekolib.Time2Bytes(time.Now())
 			value = []byte("Bar")
-			r = Record{key, value}
+			r = &nekolib.NekodRecord{key, value}
 			records = append(records, r)
 
 			err := series.InsertBatch(records, 1)
