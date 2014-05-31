@@ -36,6 +36,7 @@ var ReqHandlerMap = map[uint8](func(*nekodWorker, []byte) error){
 	nekolib.OP_NEW_SERIES:   ReqNewSeries,
 	nekolib.OP_PING:         ReqPing,
 	nekolib.OP_INSERT_BATCH: ReqInsertBatch,
+	nekolib.OP_FIND_RANGE:   ReqGetRange,
 }
 
 func (w *nekodWorker) serveForever() {
@@ -120,6 +121,10 @@ func ReqInsertBatch(w *nekodWorker, packBytes []byte) error {
 	}
 	w.sock.SendBytes(
 		nekolib.MakeResponse(nekolib.REP_OK, "Success"), 0)
+	return nil
+}
+
+func ReqGetRange(w *nekodWorker, packBytes []byte) error {
 	return nil
 }
 

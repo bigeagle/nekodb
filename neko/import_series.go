@@ -71,7 +71,10 @@ func commandImportSeries(c *cli.Context) {
 			break
 		}
 		tokens := strings.Split(string(line), ",")
-		t, _ := time.Parse(time.RFC3339Nano, tokens[0])
+		t, err := time.Parse(nekolib.ISO8601, tokens[0])
+		if err != nil {
+			break
+		}
 		record := nekolib.NekodRecord{
 			Ts:    nekolib.Time2Bytes(t),
 			Value: []byte(tokens[1]),
@@ -80,24 +83,11 @@ func commandImportSeries(c *cli.Context) {
 	}
 	if err == io.EOF || err == nil {
 		fmt.Println("EOF")
-		s.SendBytes([]byte{0, 0}, 0)
 	} else {
 		fmt.Println(err.Error())
 	}
 
-	// s := getSocket(srvHost, srvPort)
-
-	// series := nekolib.NekoSeriesInfo{
-	//     Name: c.String("name"),
-	//     Id: c.String("id"),
-	//     FragLevel: c.Int("level"),
-	// }
-	// fmt.Println(series)
-	// buf := bytes.NewBuffer(make([]byte, 0, 16))
-	// buf.WriteByte(byte(nekolib.OP_NEW_SERIES))
-	// buf.Write(series.ToBytes())
-	// fmt.Println(buf.Bytes())
-	// s.SendBytes(buf.Bytes(), 0)
+	s.SendBytes([]byte{0, 0}, 0)
 
 	b, _ := s.Recv(0)
 	fmt.Printf("%v\n", b)

@@ -40,9 +40,18 @@ type nekoWorker struct {
 func (w *nekoWorker) serveForever() {
 	for {
 		packBytes, _ := w.sock.RecvBytes(0)
+		if len(packBytes) < 1 {
+			continue
+		}
 		opcode := packBytes[0]
 		if handler, ok := ReqHandlerMap[uint8(opcode)]; ok {
-			handler(w, packBytes)
+			err := handler(w, packBytes)
+			if err != nil {
+				w.sock.SendBytes(
+					nekolib.MakeResponse(nekolib.REP_ERR, err.Error()), 0)
+			} else {
+				w.sock.SendBytes(nekolib.MakeResponse(nekolib.REP_OK, "Success"), 0)
+			}
 		} else {
 			logger.Debug("%v", packBytes)
 		}
@@ -63,16 +72,19 @@ func ReqNewSeries(w *nekoWorker, packBytes []byte) error {
 	series.FromBytes(bytes.NewBuffer(packBytes[1:]))
 	logger.Debug("%v", packBytes[1:])
 	logger.Debug("worker %d: %v", w.id, series)
-	newSeries(series)
-	w.sock.Send("reply", 0)
-	return nil
+	return newSeries(series)
 }
 
 func ReqImportSeries(w *nekoWorker, packBytes []byte) error {
 	reqHdr := new(nekolib.ReqImportSeriesHdr)
 	reqHdr.FromBytes(bytes.NewBuffer(packBytes[1:]))
 	logger.Debug("worker %d: %v", w.id, *reqHdr)
-	importSeries(reqHdr.SeriesName, w.sock)
-	// sock.SendBytes(nekolib.MakeResponse(nekolib.REP_OK, "Success"), 0)
-	return nil
+	return importSeries(reqHdr.SeriesName, w.sock)
+}
+
+func ReqFindByRange(w *nekoWorker, packBytes []byte) error {
+	reqHdr := new(nekolib.ReqFindByRangeHdr)
+	reqHdr.FromBytes(bytes.NewBuffer(packBytes[1:]))
+	logger.Debug("Find By Range Request: %#v", *reqHdr)
+	return findByRange(reqHdr.SeriesName, w.sock)
 }

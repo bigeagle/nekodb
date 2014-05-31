@@ -25,38 +25,6 @@ import (
 	"errors"
 )
 
-const (
-	OP_FIND uint8 = iota
-	OP_INSERT
-	OP_INSERT_BATCH
-	OP_DELETE
-
-	OP_NEW_SERIES
-	OP_IMPORT_SERIES
-	OP_DELETE_SERIES
-	OP_SERIES_INFO
-
-	OP_PING
-	OP_PONG
-
-	REP_OK
-	REP_ERR
-)
-
-const (
-	STATE_INIT int = iota
-	STATE_READY
-	STATE_RECOVERING
-	STATE_SYNCING
-)
-
-const (
-	PEER_FLG_KEEP int = iota
-	PEER_FLG_UPDATE
-	PEER_FLG_NEW
-	PEER_FLG_RESET
-)
-
 type BytePacket interface {
 	ToBytes() []byte
 }
@@ -270,6 +238,50 @@ func (r *ReqInsertBlockHdr) FromBytes(buf *bytes.Buffer) error {
 
 	binary.Read(buf, binary.BigEndian, &r.Priority)
 	binary.Read(buf, binary.BigEndian, &r.Count)
+
+	return nil
+}
+
+type ReqFindByRangeHdr struct {
+	SeriesName string
+	StartTs    []byte
+	EndTs      []byte
+}
+
+func (r *ReqFindByRangeHdr) ToBytes() []byte {
+	buf := bytes.NewBuffer(make([]byte, 0, 32))
+	sn := NekoString(r.SeriesName)
+	buf.Write(sn.ToBytes())
+	buf.Write(r.StartTs)
+	buf.Write(r.EndTs)
+	return buf.Bytes()
+}
+
+func (r *ReqFindByRangeHdr) FromBytes(buf *bytes.Buffer) error {
+	sn := new(NekoStrPack)
+	if err := sn.FromBytes(buf); err == nil {
+		r.SeriesName = sn.String()
+	} else {
+		return err
+	}
+
+	r.StartTs = make([]byte, 15)
+	l, err := buf.Read(r.StartTs)
+	if l != 15 {
+		return InvalidPacket
+	}
+	if err != nil {
+		return err
+	}
+
+	r.EndTs = make([]byte, 15)
+	l, err = buf.Read(r.EndTs)
+	if l != 15 {
+		return InvalidPacket
+	}
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

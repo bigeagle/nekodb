@@ -44,7 +44,7 @@ func (s *nekoBackendServer) refreshPeer(flag int) error {
 		vn, _ := json.Marshal(vnode)
 		key := fmt.Sprintf("%s/%s", nekolib.ETCD_PEER_DIR, vname)
 		s.ec.Set(key, string(vn), nekolib.ETCD_REFRESH_INTERVAL)
-		logger.Debug("%s: %s", key, vn)
+		// logger.Debug("%s: %s", key, vn)
 	}
 	return nil
 }

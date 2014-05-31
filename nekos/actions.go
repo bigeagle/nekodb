@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/bigeagle/nekodb/nekolib"
 	zmq "github.com/pebbe/zmq4"
@@ -53,12 +54,14 @@ func newSeries(series *nekolib.NekoSeriesInfo) error {
 
 	// npeers := s.backends.real_peer_count
 	// logger.Debug("%d", npeers)
-	done := make(chan struct{})
+	var wg sync.WaitGroup
 
 	s.backends.ForEachSafe(func(n *nekoRingNode) {
 		if _, found := visited[n.RealName]; !found {
 			visited[n.RealName] = true
+			wg.Add(1)
 			go func() {
+				defer wg.Done()
 				// logger.Debug(n.RealName)
 				n.Request(func(s *zmq.Socket) error {
 					if _, err := s.SendBytes(msg, 0); err != nil {
@@ -73,14 +76,11 @@ func newSeries(series *nekolib.NekoSeriesInfo) error {
 					logger.Debug("Peer %s: %v\n", n.RealName, reply)
 					return nil
 				})
-				done <- struct{}{}
 			}()
 		}
 	})
 
-	for i := 0; i < int(s.backends.real_peer_count); i++ {
-		<-done
-	}
+	wg.Wait()
 	return nil
 }
 
@@ -91,14 +91,10 @@ func importSeries(sname string, sock *zmq.Socket) error {
 	if !found {
 		return errors.New("Series Not Found")
 	}
-
-	handle_err := func(err error) {
-		sock.SendBytes(
-			nekolib.MakeResponse(nekolib.REP_ERR, err.Error()), 0)
-	}
-
+	var wg sync.WaitGroup
 	// flush block to coresponding peer
 	flushBlock := func(block []*nekolib.NekodRecord, lower, upper int64) {
+		defer wg.Done()
 		if len(block) < 1 {
 			return
 		}
@@ -116,12 +112,6 @@ func importSeries(sname string, sock *zmq.Socket) error {
 			Priority:   uint8(0),
 			Count:      uint16(len(block)),
 		}
-
-		// s, _ := nekolib.Bytes2Time(start_ts)
-		// e, _ := nekolib.Bytes2Time(end_ts)
-		// logger.Debug("Pushing block to %s: %s, %d, range: %v, %v",
-		// 	peer.Name, sname, reqHdr.Count,
-		// 	s, e)
 
 		peer.Request(func(psock *zmq.Socket) error {
 			buf := bytes.NewBuffer(make([]byte, 0))
@@ -153,7 +143,6 @@ func importSeries(sname string, sock *zmq.Socket) error {
 		msg, err := sock.RecvBytes(0)
 		if err != nil {
 			logger.Error(err.Error())
-			handle_err(err)
 			return err
 		}
 
@@ -164,15 +153,12 @@ func importSeries(sname string, sock *zmq.Socket) error {
 					break
 				}
 				logger.Error(err.Error())
-				handle_err(err)
 				return err
 			}
 
-			// logger.Debug("%v", r)
-			// continue
-
 			ts := nekolib.Bytes2TimeSec(r.Ts)
 			if !(ts < blk_upper && ts >= blk_lower) {
+				wg.Add(1)
 				go flushBlock(record_blk, blk_lower, blk_upper)
 				// Reset Block Cache and Time Range
 				record_blk = make([]*nekolib.NekodRecord, 0, 32)
@@ -182,9 +168,12 @@ func importSeries(sname string, sock *zmq.Socket) error {
 			record_blk = append(record_blk, r)
 		}
 	}
+	wg.Add(1)
+	flushBlock(record_blk, blk_lower, blk_upper)
+	wg.Wait()
+	return nil
+}
 
-	// flushBlock(record_blk, blk_lower, blk_upper)
-	sock.SendBytes(nekolib.MakeResponse(nekolib.REP_OK, "Success"), 0)
-
+func findByRange(sname string, sock *zmq.Socket) error {
 	return nil
 }
