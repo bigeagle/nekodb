@@ -29,6 +29,7 @@ const workerAddr = "inproc://workers"
 var ReqHandlerMap = map[uint8](func(*nekoWorker, []byte) error){
 	nekolib.OP_NEW_SERIES:    ReqNewSeries,
 	nekolib.OP_IMPORT_SERIES: ReqImportSeries,
+	nekolib.OP_FIND_RANGE:    ReqFindByRange,
 }
 
 type nekoWorker struct {
@@ -86,5 +87,5 @@ func ReqFindByRange(w *nekoWorker, packBytes []byte) error {
 	reqHdr := new(nekolib.ReqFindByRangeHdr)
 	reqHdr.FromBytes(bytes.NewBuffer(packBytes[1:]))
 	logger.Debug("Find By Range Request: %#v", *reqHdr)
-	return findByRange(reqHdr.SeriesName, w.sock)
+	return findByRange(reqHdr, w.sock)
 }

@@ -43,6 +43,7 @@ const (
 	OP_PONG
 
 	REP_OK
+	REP_ACK
 	REP_ERR
 )
 

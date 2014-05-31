@@ -125,6 +125,43 @@ func ReqInsertBatch(w *nekodWorker, packBytes []byte) error {
 }
 
 func ReqGetRange(w *nekodWorker, packBytes []byte) error {
+	var reqHdr nekolib.ReqFindByRangeHdr
+
+	buf := bytes.NewBuffer(packBytes[1:])
+	err := (&reqHdr).FromBytes(buf)
+	if err != nil {
+		w.sock.SendBytes(
+			nekolib.MakeResponse(nekolib.REP_ERR, err.Error()), 0)
+		logger.Error(err.Error())
+		return err
+	}
+
+	series, _ := w.srv.GetSeries(reqHdr.SeriesName)
+	start, _ := nekolib.Bytes2Time(reqHdr.StartTs)
+	end, _ := nekolib.Bytes2Time(reqHdr.EndTs)
+	logger.Debug("Start Querying Series: %s from %v to %v", series.Name, start, end)
+
+	w.sock.SendBytes(nekolib.MakeResponse(nekolib.REP_ACK, "starting"), zmq.SNDMORE)
+
+	buf = bytes.NewBuffer(make([]byte, 0, 256))
+	series.RangeOp(reqHdr.StartTs, reqHdr.EndTs, reqHdr.Priority, func(key, value []byte) {
+		r := &nekolib.NekodRecord{key, value}
+		buf.Write(r.ToBytes())
+		if buf.Len() > 256 {
+			// logger.Debug("Flushing Buffer")
+			w.sock.SendBytes(buf.Bytes(), zmq.SNDMORE)
+			buf = bytes.NewBuffer(make([]byte, 0, 512))
+		}
+	})
+	if buf.Len() > 0 {
+		w.sock.SendBytes(buf.Bytes(), zmq.SNDMORE)
+	}
+
+	w.sock.SendBytes([]byte{0, 0}, zmq.SNDMORE)
+	logger.Debug("Done")
+	w.sock.SendBytes(
+		nekolib.MakeResponse(nekolib.REP_OK, "Done"), 0)
+
 	return nil
 }
 

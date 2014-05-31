@@ -17,53 +17,62 @@
 package main
 
 import (
-    "os"
-    "github.com/codegangsta/cli"
-    "github.com/bigeagle/nekodb/nekolib"
+	"os"
+
+	"github.com/bigeagle/nekodb/nekolib"
+	"github.com/codegangsta/cli"
 )
 
 var (
-    srvHost string
-    srvPort int
+	srvHost string
+	srvPort int
 )
 
-
-
 func main() {
-    app := cli.NewApp()
-    app.Name = "nekoctl"
-    app.Usage = "Cli tool for nekodb"
-    app.Version = nekolib.VERSION
-    app.Flags = []cli.Flag {
-        cli.StringFlag{"host, H", "localhost", "Neko Server Host"},
-        cli.IntFlag{"port, p", 2345, "Neko Server Port"},
-    }
-    app.Commands = []cli.Command{
-        {
-            Name: "import",
-            Usage: "Import ts file to nekodb",
-            Flags: []cli.Flag {
-                cli.StringFlag{"name, n", "", "Series Name"},
-                cli.StringFlag{"id", "", "Series Id"},
-                cli.IntFlag{"level, l", nekolib.SLICE_FRAG_LEVEL_DEFAULT, "Fragmentation Level"},
-            },
-            Action: commandImportSeries,
-        },
-        {
-            Name: "new-series",
-            Usage: "Create New Series",
-            Flags: []cli.Flag {
-                cli.StringFlag{"name, n", "", "Series Name"},
-                cli.StringFlag{"id", "", "Series Id"},
-                cli.IntFlag{"level, l", nekolib.SLICE_FRAG_LEVEL_DEFAULT, "Fragmentation Level"},
-            },
-            Action: commandNewSeries,
-        },
-    }
-    app.Before = func(c *cli.Context) error {
-        srvHost = c.String("host")
-        srvPort = c.Int("port")
-        return nil
-    }
-    app.Run(os.Args)
+	app := cli.NewApp()
+	app.Name = "nekoctl"
+	app.Usage = "Cli tool for nekodb"
+	app.Version = nekolib.VERSION
+	app.Flags = []cli.Flag{
+		cli.StringFlag{"host, H", "localhost", "Neko Server Host"},
+		cli.IntFlag{"port, p", 2345, "Neko Server Port"},
+	}
+	app.Commands = []cli.Command{
+		{
+			Name:  "import",
+			Usage: "Import ts file to nekodb",
+			Flags: []cli.Flag{
+				cli.StringFlag{"name, n", "", "Series Name"},
+				cli.StringFlag{"id", "", "Series Id"},
+				cli.IntFlag{"level, l", nekolib.SLICE_FRAG_LEVEL_DEFAULT, "Fragmentation Level"},
+			},
+			Action: commandImportSeries,
+		},
+		{
+			Name:  "new-series",
+			Usage: "Create New Series",
+			Flags: []cli.Flag{
+				cli.StringFlag{"name, n", "", "Series Name"},
+				cli.StringFlag{"id", "", "Series Id"},
+				cli.IntFlag{"level, l", nekolib.SLICE_FRAG_LEVEL_DEFAULT, "Fragmentation Level"},
+			},
+			Action: commandNewSeries,
+		},
+		{
+			Name:  "find",
+			Usage: "Find data points",
+			Flags: []cli.Flag{
+				cli.StringFlag{"series, s", "", "Series Name"},
+				cli.StringFlag{"start", "", "Start Time, eg: 1970-01-01T00:00:00.000+0800"},
+				cli.StringFlag{"end", "", "End Time, eg: 2012-12-21T23:59:59.999+0800"},
+			},
+			Action: commandFindDataPoints,
+		},
+	}
+	app.Before = func(c *cli.Context) error {
+		srvHost = c.String("host")
+		srvPort = c.Int("port")
+		return nil
+	}
+	app.Run(os.Args)
 }

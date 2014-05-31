@@ -246,6 +246,7 @@ type ReqFindByRangeHdr struct {
 	SeriesName string
 	StartTs    []byte
 	EndTs      []byte
+	Priority   uint8
 }
 
 func (r *ReqFindByRangeHdr) ToBytes() []byte {
@@ -254,6 +255,7 @@ func (r *ReqFindByRangeHdr) ToBytes() []byte {
 	buf.Write(sn.ToBytes())
 	buf.Write(r.StartTs)
 	buf.Write(r.EndTs)
+	binary.Write(buf, binary.BigEndian, r.Priority)
 	return buf.Bytes()
 }
 
@@ -283,6 +285,7 @@ func (r *ReqFindByRangeHdr) FromBytes(buf *bytes.Buffer) error {
 		return err
 	}
 
+	binary.Read(buf, binary.BigEndian, &r.Priority)
 	return nil
 }
 
