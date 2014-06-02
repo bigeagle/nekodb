@@ -175,15 +175,7 @@ func importSeries(sname string, sock *zmq.Socket) error {
 }
 
 func findByRange(reqHdr *nekolib.ReqFindByRangeHdr, sock *zmq.Socket) error {
-	s := getServer()
-
-	buf := bytes.NewBuffer(make([]byte, 0, 16))
-	buf.WriteByte(byte(nekolib.OP_FIND_RANGE))
-	buf.Write(reqHdr.ToBytes())
-	reqMsg := buf.Bytes()
-
 	recordChan := make(chan nekolib.SCNode, 256)
-	sortedChannel := nekolib.NewSortedChannel(16, recordChan)
 	done := make(chan struct{})
 	go func() {
 		sock.SendBytes(
@@ -199,68 +191,8 @@ func findByRange(reqHdr *nekolib.ReqFindByRangeHdr, sock *zmq.Socket) error {
 		close(done)
 	}()
 
-	var wg sync.WaitGroup
+	getRangeToChan(reqHdr, recordChan)
 
-	visited := make(map[string]bool)
-	s.backends.ForEachSafe(func(n *nekoRingNode) {
-		sortedChannel.AddPublisher(n.RealName)
-	})
-
-	s.backends.ForEachSafe(func(n *nekoRingNode) {
-		if _, found := visited[n.RealName]; !found {
-			visited[n.RealName] = true
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				// logger.Debug(n.RealName)
-				n.Request(func(psock *zmq.Socket) error {
-					if _, err := psock.SendBytes(reqMsg, 0); err != nil {
-						logger.Error(err.Error())
-						return err
-					}
-					ack, _ := psock.RecvBytes(0)
-					if uint8(ack[0]) != nekolib.REP_ACK {
-						logger.Error("peer %s: %s", n.Name, string(ack[1:]))
-						return errors.New(string(ack[1:]))
-					}
-
-				READ_STREAM:
-					for more, _ := psock.GetRcvmore(); more; more, _ = psock.GetRcvmore() {
-						msg, err := psock.RecvBytes(0)
-						// logger.Debug("yes")
-						if err != nil {
-							logger.Error(err.Error())
-							return err
-						}
-
-						for buf := bytes.NewBuffer(msg); buf.Len() > 0; {
-							r := new(nekolib.NekodRecord)
-							if err := r.FromBytes(buf); err != nil {
-								if err == nekolib.EndOfStream {
-									break READ_STREAM
-								}
-								logger.Error(err.Error())
-								return err
-							}
-							// logger.Debug("%#v", r)
-							sortedChannel.Pub(n.RealName, r)
-						}
-					}
-					msg, _ := psock.RecvBytes(0)
-					sortedChannel.RemovePublisher(n.RealName)
-					if uint8(msg[0]) != nekolib.REP_OK {
-						logger.Error("peer %s", n.Name)
-						return errors.New(string(msg[1:]))
-					} else {
-						logger.Debug("peer %s: %s", n.Name, string(msg[1:]))
-					}
-					return nil
-				})
-			}()
-		}
-	})
-
-	wg.Wait()
 	<-done
 	logger.Debug("Done")
 	return nil

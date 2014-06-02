@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"os"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -28,6 +29,7 @@ type Config struct {
 	Port       int      `toml:"port"`
 	MaxWorkers int      `toml:"max_workers"`
 	Name       string   `toml:"name"`
+	Domain     string   `toml:"domain"`
 	Hostname   string   `toml:"hostname"`
 	Virtuals   int      `toml:"virtuals"`
 	DataPath   string   `toml:"data_path"`
@@ -38,13 +40,17 @@ type Config struct {
 func loadConfig(cfgFile string, arguments []string) (*Config, error) {
 	var etcdPeers string
 	var showVersion bool
+
+	hostname, _ := os.Hostname()
+
 	cfg := new(Config)
 
 	cfg.Addr = "127.0.0.1"
 	cfg.Port = 1234
 	cfg.MaxWorkers = 4
-	cfg.Name = "nekod"
-	cfg.Hostname = "localhost"
+	cfg.Name = hostname
+	cfg.Domain = ""
+	cfg.Hostname = ""
 	cfg.DataPath = "/var/lib/nekodb"
 	cfg.Virtuals = 1
 	cfg.Debug = false
@@ -54,6 +60,14 @@ func loadConfig(cfgFile string, arguments []string) (*Config, error) {
 			logger.Error(err.Error())
 			return nil, err
 		}
+		if cfg.Hostname == "" {
+			if cfg.Domain == "" {
+				cfg.Hostname = "localhost"
+			} else {
+				cfg.Hostname = hostname + "." + cfg.Domain
+			}
+		}
+
 	}
 
 	f := flag.NewFlagSet("nekod", flag.ContinueOnError)
@@ -62,6 +76,8 @@ func loadConfig(cfgFile string, arguments []string) (*Config, error) {
 	f.IntVar(&cfg.Port, "port", cfg.Port, "Bind Port")
 	f.IntVar(&cfg.MaxWorkers, "max-workers", cfg.MaxWorkers, "Max worker threads")
 	f.StringVar(&cfg.Name, "name", cfg.Name, "Peer Name")
+	f.StringVar(&cfg.Domain, "domain name", cfg.Domain, "Domain Name")
+	f.StringVar(&cfg.Hostname, "hostname", cfg.Hostname, "Host Name")
 	f.IntVar(&cfg.Virtuals, "virtuals", cfg.Virtuals, "Number of virtual nodes")
 	f.StringVar(&cfg.DataPath, "data-path", cfg.DataPath, "Path to store data")
 	f.StringVar(&etcdPeers, "etcd-peers", "", "Etcd peers")
