@@ -1,0 +1,42 @@
+{{!
+<div class="page-header">
+  <h2>Plot</h2>
+</div>
+}}
+
+<div class="panel panel-success">
+  <div class="panel-body">
+    <div id="canvas">
+    </div>
+    <b>Select Series</b>:
+    <div class="row" id="series-selectors">
+    {{#series}}
+    <div class="col-sm-1 series-option label label-large label-default">{{name}}</div>
+    {{/series}}
+    </div>
+  </div>
+  <div class="panel-footer">
+    <div class="row">
+      <div class="col-sm-2 col-md-4"> </div>
+      <div class="col-sm-4 col-md-3">
+        <div class="input-group date" data-date-format="yyyy-mm-dd" data-date="2013-01-01">
+          <span class="input-group-addon"><b>Start</b></span>
+          <input id="date-start" class="form-control" type="text" readonly="" size="16" value="2013-01-01" />
+          <span class="input-group-addon"><i class="glyphicon glyphicon-calendar"></i></span>
+        </div>
+      </div> 
+      <div class="col-sm-4 col-md-3">
+        <div class="input-group date" data-date-format="yyyy-mm-dd" data-date="2013-01-30">
+          <span class="input-group-addon"><b>End</b></span>
+          <input id="date-end" class="form-control" type="text" readonly="" size="16"  value="2013-01-30" />
+          <span class="input-group-addon"><i class="glyphicon glyphicon-calendar"></i></span>
+        </div>
+      </div> 
+      <div class="col-sm-2">
+        <div class="btn btn-primary" id="draw">Plot</div> 
+      </div> 
+    </div>
+  </div>
+</div>
+
+</div>

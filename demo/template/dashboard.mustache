@@ -1,0 +1,65 @@
+<div class="page-header">
+  <h2>Dashboard</h2>
+</div>
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <b>Consistent Hash Ring </b>
+  </div>
+  <div class="panel-body" id="hash-ring-container">
+  
+  </div>
+</div>
+
+<div class="panel panel-success">
+  <div class="panel-heading">
+    <b>Backend Peers</b>
+  </div> 
+
+  <table class="table table-striped table-bordered">
+    <thead>
+      <th>Name</th>
+      <th>Hash</th>
+      <th>Real Name</th>
+      <th>Host</th>
+      <th>Port</th>
+      <th>State</th>
+    </thead>
+
+    <tbody>
+    {{#peers}}
+    <tr>
+      <td>{{name}}</td>
+      <td>{{hash_value}}</td>
+      <td>{{real_name}}</td>
+      <td>{{hostname}}</td>
+      <td>{{port}}</td>
+      <td>{{state}}</td> 
+    </tr>
+    {{/peers}}
+    </tbody> 
+  </table>
+</div>
+
+<div class="panel panel-info">
+  <div class="panel-heading">
+    <b>Series List</b>
+  </div>
+
+  <table class="table table-striped table-bordered">
+    <thead>
+      <th>Name</th>
+      <th>Id</th>
+      <th>Frag Level</th>
+    </thead>
+
+    <tbody>
+    {{#series}}
+    <tr>
+      <td>{{name}}</td>
+      <td>{{id}}</td>
+      <td>{{frag_level}}</td>
+    </tr>
+    {{/series}}
+    </tbody> 
+  </table>
+</div>
