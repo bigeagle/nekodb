@@ -18,67 +18,66 @@
 package main
 
 import (
-    "fmt"
-    "sync"
-    zmq "github.com/pebbe/zmq4"
-    "github.com/coreos/go-etcd/etcd"
-    "github.com/bigeagle/nekodb/nekolib"
+	"fmt"
+	"sync"
+
+	"github.com/bigeagle/nekodb/nekolib"
+	"github.com/coreos/go-etcd/etcd"
+	zmq "github.com/pebbe/zmq4"
 )
 
-
 type nekoServer struct {
-    m  sync.RWMutex
-    cfg *nekosConfig
-    ec *etcd.Client
-    peerChan, seriesChan chan *etcd.Response
-    backends *nekoBackendRing
-    reqPools map[string]*nekolib.ReqPool
-    collection *nekoCollection
+	m                    sync.RWMutex
+	cfg                  *nekosConfig
+	ec                   *etcd.Client
+	peerChan, seriesChan chan *etcd.Response
+	backends             *nekoBackendRing
+	reqPools             map[string]*nekolib.ReqPool
+	collection           *nekoCollection
 }
 
-func startNekoServer(cfg *nekosConfig) (error) {
-    srv = new(nekoServer)
-    srv.cfg = cfg
-    srv.peerChan = make(chan *etcd.Response)
-    srv.seriesChan = make(chan *etcd.Response)
-    srv.reqPools = make(map[string]*nekolib.ReqPool)
-    srv.backends = newNekoBackendRing()
-    srv.collection = newNekoCollection()
-    if err := srv.init(); err != nil {
-        return err
-    }
-    srv.serveForever()
-    return nil
+func startNekoServer(cfg *nekosConfig) error {
+	srv = new(nekoServer)
+	srv.cfg = cfg
+	srv.peerChan = make(chan *etcd.Response)
+	srv.seriesChan = make(chan *etcd.Response)
+	srv.reqPools = make(map[string]*nekolib.ReqPool)
+	srv.backends = newNekoBackendRing()
+	srv.collection = newNekoCollection()
+	if err := srv.init(); err != nil {
+		return err
+	}
+	go serveHTTP(cfg.HTTPAddr, cfg.HTTPPort)
+	srv.serveForever()
+	return nil
 }
 
 func getServer() *nekoServer {
-    return srv
+	return srv
 }
 
 func (s *nekoServer) init() error {
-    if err := initEtcd(); err != nil {
-        return err
-    }
-    return nil
+	if err := initEtcd(); err != nil {
+		return err
+	}
+	return nil
 
 }
-
 
 func (s *nekoServer) serveForever() {
-    clients, _ := zmq.NewSocket(zmq.ROUTER)
-    defer clients.Close()
-    clients.Bind(fmt.Sprintf("tcp://%s:%d", s.cfg.Addr, s.cfg.Port))
+	clients, _ := zmq.NewSocket(zmq.ROUTER)
+	defer clients.Close()
+	clients.Bind(fmt.Sprintf("tcp://%s:%d", s.cfg.Addr, s.cfg.Port))
 
-    workers, _ := zmq.NewSocket(zmq.DEALER)
-    defer workers.Close()
-    workers.Bind(workerAddr)
+	workers, _ := zmq.NewSocket(zmq.DEALER)
+	defer workers.Close()
+	workers.Bind(workerAddr)
 
-    for i := 0; i < s.cfg.MaxWorkers; i++ {
-        go startWorker(i, s)
-    }
+	for i := 0; i < s.cfg.MaxWorkers; i++ {
+		go startWorker(i, s)
+	}
 
-    err := zmq.Proxy(clients, workers, nil)
-    logger.Fatalf("Proxy Exited: %s", err.Error())
+	err := zmq.Proxy(clients, workers, nil)
+	logger.Fatalf("Proxy Exited: %s", err.Error())
 
 }
-

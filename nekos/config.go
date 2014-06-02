@@ -18,59 +18,65 @@
 package main
 
 import (
-    "flag"
-    "strings"
-    "github.com/BurntSushi/toml"
+	"flag"
+	"strings"
+
+	"github.com/BurntSushi/toml"
 )
 
 type nekosConfig struct {
-    Addr string             `toml:"addr"`
-    Port int                `toml:"port"`
-    MaxWorkers int          `toml:"max_workers"`
-    EtcdPeers []string      `toml:"etcd_peers"`
-    Debug bool              `toml:"debug"`
+	Addr       string   `toml:"addr"`
+	Port       int      `toml:"port"`
+	HTTPAddr   string   `toml:"http_addr"`
+	HTTPPort   int      `toml:"http_port"`
+	MaxWorkers int      `toml:"max_workers"`
+	EtcdPeers  []string `toml:"etcd_peers"`
+	Debug      bool     `toml:"debug"`
 }
 
-
 func loadConfig(cfgFile string, arguments []string) (*nekosConfig, error) {
-    var etcdPeers string
-    var showVersion bool
+	var etcdPeers string
+	var showVersion bool
 
-    cfg := new(nekosConfig)
+	cfg := new(nekosConfig)
 
-    cfg.Addr = "127.0.0.1"
-    cfg.Port = 2345
-    cfg.Debug = false
+	cfg.Addr = "127.0.0.1"
+	cfg.Port = 2345
+	cfg.HTTPAddr = "127.0.0.1"
+	cfg.HTTPPort = 12345
+	cfg.Debug = false
 
-    if cfgFile != "" {
-        if _, err := toml.DecodeFile(cfgFile, cfg); err != nil {
-            logger.Error(err.Error())
-            return nil, err
-        }
-    }
+	if cfgFile != "" {
+		if _, err := toml.DecodeFile(cfgFile, cfg); err != nil {
+			logger.Error(err.Error())
+			return nil, err
+		}
+	}
 
-    f := flag.NewFlagSet("nekos", flag.ContinueOnError)
+	f := flag.NewFlagSet("nekos", flag.ContinueOnError)
 
-    f.StringVar(&cfg.Addr, "addr", cfg.Addr, "Bind Addr")
-    f.IntVar(&cfg.Port, "port", cfg.Port, "Bind Port")
-    f.IntVar(&cfg.MaxWorkers, "max-workers", cfg.MaxWorkers, "Max worker threads")
-    f.StringVar(&etcdPeers, "etcd-peers", "", "Etcd peers")
-    f.BoolVar(&cfg.Debug, "debug", cfg.Debug, "Debug Mode")
+	f.StringVar(&cfg.Addr, "addr", cfg.Addr, "Bind Addr")
+	f.IntVar(&cfg.Port, "port", cfg.Port, "Bind Port")
+	f.StringVar(&cfg.HTTPAddr, "http-addr", cfg.HTTPAddr, "HTTP REST API Addr")
+	f.IntVar(&cfg.HTTPPort, "http-port", cfg.HTTPPort, "HTTP REST API Port")
+	f.IntVar(&cfg.MaxWorkers, "max-workers", cfg.MaxWorkers, "Max worker threads")
+	f.StringVar(&etcdPeers, "etcd-peers", "", "Etcd peers")
+	f.BoolVar(&cfg.Debug, "debug", cfg.Debug, "Debug Mode")
 
-    // Begin Ignored  (for usage message)
-    f.BoolVar(&showVersion, "version", false, "Print Version")
-    f.StringVar(&cfgFile, "config", "", "Configuration File Path")
-    // End Ignored
+	// Begin Ignored  (for usage message)
+	f.BoolVar(&showVersion, "version", false, "Print Version")
+	f.StringVar(&cfgFile, "config", "", "Configuration File Path")
+	// End Ignored
 
-    if err := f.Parse(arguments); err != nil {
-        return nil, err
-    } else {
-        if etcdPeers != "" {
-            cfg.EtcdPeers = strings.Split(etcdPeers, ",")
-        }
+	if err := f.Parse(arguments); err != nil {
+		return nil, err
+	} else {
+		if etcdPeers != "" {
+			cfg.EtcdPeers = strings.Split(etcdPeers, ",")
+		}
 
-        logger.Debug("%v", cfg)
-        return cfg, nil
-    }
+		logger.Debug("%v", cfg)
+		return cfg, nil
+	}
 
 }

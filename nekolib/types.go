@@ -104,6 +104,11 @@ func (r *NekodRecord) FromBytes(buf *bytes.Buffer) (err error) {
 	return err
 }
 
+func (r *NekodRecord) Key() int64 {
+	t, _ := Bytes2Time(r.Ts)
+	return t.UnixNano()
+}
+
 type NekodSeriesInfo struct {
 	Name  NekoStrPack
 	Count uint64

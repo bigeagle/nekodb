@@ -182,19 +182,17 @@ func findByRange(reqHdr *nekolib.ReqFindByRangeHdr, sock *zmq.Socket) error {
 	buf.Write(reqHdr.ToBytes())
 	reqMsg := buf.Bytes()
 
-	newRecord := make(chan struct{})
-	sortedBuffer := newBufferList()
+	recordChan := make(chan nekolib.SCNode, 256)
+	sortedChannel := nekolib.NewSortedChannel(16, recordChan)
 	done := make(chan struct{})
 	go func() {
 		sock.SendBytes(
 			nekolib.MakeResponse(nekolib.REP_ACK, "Starting Query"),
 			zmq.SNDMORE,
 		)
-		for _ = range newRecord {
-			records := sortedBuffer.pop()
-			for _, record := range records {
-				sock.SendBytes(record.ToBytes(), zmq.SNDMORE)
-			}
+		for record := range recordChan {
+			sock.SendBytes(record.(*nekolib.NekodRecord).ToBytes(),
+				zmq.SNDMORE)
 		}
 		sock.SendBytes([]byte{0, 0}, zmq.SNDMORE)
 		logger.Debug("Sending Stream End")
@@ -204,6 +202,10 @@ func findByRange(reqHdr *nekolib.ReqFindByRangeHdr, sock *zmq.Socket) error {
 	var wg sync.WaitGroup
 
 	visited := make(map[string]bool)
+	s.backends.ForEachSafe(func(n *nekoRingNode) {
+		sortedChannel.AddPublisher(n.RealName)
+	})
+
 	s.backends.ForEachSafe(func(n *nekoRingNode) {
 		if _, found := visited[n.RealName]; !found {
 			visited[n.RealName] = true
@@ -231,7 +233,6 @@ func findByRange(reqHdr *nekolib.ReqFindByRangeHdr, sock *zmq.Socket) error {
 							return err
 						}
 
-						records := make([]*nekolib.NekodRecord, 0, 32)
 						for buf := bytes.NewBuffer(msg); buf.Len() > 0; {
 							r := new(nekolib.NekodRecord)
 							if err := r.FromBytes(buf); err != nil {
@@ -242,14 +243,14 @@ func findByRange(reqHdr *nekolib.ReqFindByRangeHdr, sock *zmq.Socket) error {
 								return err
 							}
 							// logger.Debug("%#v", r)
-							records = append(records, r)
+							sortedChannel.Pub(n.RealName, r)
 						}
-						sortedBuffer.push(records)
-						newRecord <- struct{}{}
 					}
 					msg, _ := psock.RecvBytes(0)
+					sortedChannel.RemovePublisher(n.RealName)
 					if uint8(msg[0]) != nekolib.REP_OK {
 						logger.Error("peer %s", n.Name)
+						return errors.New(string(msg[1:]))
 					} else {
 						logger.Debug("peer %s: %s", n.Name, string(msg[1:]))
 					}
@@ -260,7 +261,6 @@ func findByRange(reqHdr *nekolib.ReqFindByRangeHdr, sock *zmq.Socket) error {
 	})
 
 	wg.Wait()
-	close(newRecord)
 	<-done
 	logger.Debug("Done")
 	return nil
