@@ -110,8 +110,18 @@ func (r *NekodRecord) Key() int64 {
 }
 
 type NekodSeriesInfo struct {
-	Name  NekoStrPack
-	Count uint64
+	Count int64
+}
+
+func (r *NekodSeriesInfo) ToBytes() []byte {
+	buf := bytes.NewBuffer(make([]byte, 0, 8))
+	binary.Write(buf, binary.BigEndian, r.Count)
+	return buf.Bytes()
+}
+
+func (r *NekodSeriesInfo) FromBytes(buf *bytes.Buffer) error {
+	binary.Read(buf, binary.BigEndian, &r.Count)
+	return nil
 }
 
 type NekodPeerInfo struct {
@@ -163,147 +173,4 @@ func (ns *NekoSeriesInfo) FromBytes(buf *bytes.Buffer) error {
 		return err
 	}
 	return nil
-}
-
-type ReqImportSeriesHdr struct {
-	SeriesName string
-}
-
-func (r *ReqImportSeriesHdr) ToBytes() []byte {
-	buf := bytes.NewBuffer(make([]byte, 0, 16))
-	sn := NekoString(r.SeriesName)
-	buf.Write(sn.ToBytes())
-	return buf.Bytes()
-}
-
-func (r *ReqImportSeriesHdr) FromBytes(buf *bytes.Buffer) error {
-	sn := new(NekoStrPack)
-	if err := sn.FromBytes(buf); err == nil {
-		r.SeriesName = sn.String()
-	} else {
-		return err
-	}
-	return nil
-}
-
-type ReqInsertBlockHdr struct {
-	SeriesName string
-	HashValue  uint32
-	StartTs    []byte
-	EndTs      []byte
-	Priority   uint8
-	Count      uint16
-}
-
-func (r *ReqInsertBlockHdr) ToBytes() []byte {
-	buf := bytes.NewBuffer(make([]byte, 0, 32))
-	sn := NekoString(r.SeriesName)
-	buf.Write(sn.ToBytes())
-	binary.Write(buf, binary.BigEndian, r.HashValue)
-	// if len(r.StartTs) != 15 {
-	// 	return []byte{}, InvalidPacket
-	// }
-	// if len(r.EndTs) != 15 {
-	// 	return []byte{}, InvalidPacket
-	// }
-	buf.Write(r.StartTs)
-	buf.Write(r.EndTs)
-	binary.Write(buf, binary.BigEndian, r.Priority)
-	binary.Write(buf, binary.BigEndian, r.Count)
-	return buf.Bytes()
-}
-
-func (r *ReqInsertBlockHdr) FromBytes(buf *bytes.Buffer) error {
-	sn := new(NekoStrPack)
-	if err := sn.FromBytes(buf); err == nil {
-		r.SeriesName = sn.String()
-	} else {
-		return err
-	}
-
-	binary.Read(buf, binary.BigEndian, &r.HashValue)
-
-	r.StartTs = make([]byte, 15)
-	l, err := buf.Read(r.StartTs)
-	if l != 15 {
-		return InvalidPacket
-	}
-	if err != nil {
-		return err
-	}
-
-	r.EndTs = make([]byte, 15)
-	l, err = buf.Read(r.EndTs)
-	if l != 15 {
-		return InvalidPacket
-	}
-	if err != nil {
-		return err
-	}
-
-	binary.Read(buf, binary.BigEndian, &r.Priority)
-	binary.Read(buf, binary.BigEndian, &r.Count)
-
-	return nil
-}
-
-type ReqFindByRangeHdr struct {
-	SeriesName string
-	StartTs    []byte
-	EndTs      []byte
-	Priority   uint8
-}
-
-func (r *ReqFindByRangeHdr) ToBytes() []byte {
-	buf := bytes.NewBuffer(make([]byte, 0, 32))
-	sn := NekoString(r.SeriesName)
-	buf.Write(sn.ToBytes())
-	buf.Write(r.StartTs)
-	buf.Write(r.EndTs)
-	binary.Write(buf, binary.BigEndian, r.Priority)
-	return buf.Bytes()
-}
-
-func (r *ReqFindByRangeHdr) FromBytes(buf *bytes.Buffer) error {
-	sn := new(NekoStrPack)
-	if err := sn.FromBytes(buf); err == nil {
-		r.SeriesName = sn.String()
-	} else {
-		return err
-	}
-
-	r.StartTs = make([]byte, 15)
-	l, err := buf.Read(r.StartTs)
-	if l != 15 {
-		return InvalidPacket
-	}
-	if err != nil {
-		return err
-	}
-
-	r.EndTs = make([]byte, 15)
-	l, err = buf.Read(r.EndTs)
-	if l != 15 {
-		return InvalidPacket
-	}
-	if err != nil {
-		return err
-	}
-
-	binary.Read(buf, binary.BigEndian, &r.Priority)
-	return nil
-}
-
-func MakeResponse(code uint8, msg interface{}) []byte {
-	buf := bytes.NewBuffer(make([]byte, 0, 16))
-	buf.WriteByte(byte(code))
-	switch v := msg.(type) {
-	case string:
-		buf.Write([]byte(v))
-	case []byte:
-		buf.Write(v)
-	case byte:
-		buf.WriteByte(v)
-	}
-	return buf.Bytes()
 }

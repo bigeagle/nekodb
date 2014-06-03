@@ -82,7 +82,7 @@ func initCollections() error {
 		return err
 	} else {
 		for _, sNode := range r.Node.Nodes {
-			series := new(nekoSeries)
+			series := new(nekolib.NekoSeriesInfo)
 			if err = json.Unmarshal([]byte(sNode.Value), series); err == nil {
 				s.collection.insertSeries(series)
 			}
@@ -137,7 +137,7 @@ func handleCollectionUpdate() {
 		case "expire", "delete":
 			s.collection.removeSeries(sname)
 		default:
-			series := new(nekoSeries)
+			series := new(nekolib.NekoSeriesInfo)
 			if err := json.Unmarshal([]byte(update.Node.Value), series); err == nil {
 				s.collection.insertSeries(series)
 			}

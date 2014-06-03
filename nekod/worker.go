@@ -19,6 +19,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 
 	"github.com/bigeagle/nekodb/nekolib"
 	zmq "github.com/pebbe/zmq4"
@@ -37,6 +38,7 @@ var ReqHandlerMap = map[uint8](func(*nekodWorker, []byte) error){
 	nekolib.OP_PING:         ReqPing,
 	nekolib.OP_INSERT_BATCH: ReqInsertBatch,
 	nekolib.OP_FIND_RANGE:   ReqGetRange,
+	nekolib.OP_SERIES_INFO:  ReqSeriesMeta,
 }
 
 func (w *nekodWorker) serveForever() {
@@ -76,6 +78,30 @@ func ReqNewSeries(w *nekodWorker, packBytes []byte) error {
 		return err
 	}
 	w.sock.Send("OK", 0)
+	return nil
+}
+
+func ReqSeriesMeta(w *nekodWorker, packBytes []byte) error {
+	reqHdr := new(nekolib.ReqSeriesMetaHdr)
+	reqHdr.FromBytes(bytes.NewBuffer(packBytes[1:]))
+
+	series, found := w.srv.GetSeries(reqHdr.SeriesName)
+	if !found {
+		err := fmt.Errorf("No Series %s", reqHdr.SeriesName)
+		w.sock.SendBytes(
+			nekolib.MakeResponse(nekolib.REP_ERR, err.Error()), 0)
+		return err
+	}
+
+	count, _ := series.Count()
+	sm := nekolib.NekodSeriesInfo{
+		Count: int64(count),
+	}
+	buf := bytes.NewBuffer(make([]byte, 0, 9))
+	buf.WriteByte(byte(nekolib.REP_OK))
+	buf.Write(sm.ToBytes())
+	w.sock.SendBytes(buf.Bytes(), 0)
+
 	return nil
 }
 

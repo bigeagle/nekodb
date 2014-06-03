@@ -127,6 +127,8 @@ func (s *nekoBackendServer) initSeries() error {
 							logger.Error(err.Error())
 							return err
 						}
+						c, _ := series.Count()
+						logger.Debug("element count: %d", c)
 					}
 				} else {
 					return fmt.Errorf("Invalid DB Directory: %s", dbpath)

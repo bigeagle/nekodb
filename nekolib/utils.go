@@ -17,7 +17,10 @@
 
 package nekolib
 
-import "time"
+import (
+	"bytes"
+	"time"
+)
 
 func Time2Bytes(t time.Time) []byte {
 	b, _ := t.MarshalBinary()
@@ -85,4 +88,18 @@ func TimeBoundary(tb []byte, frag_level int) (lower, upper []byte) {
 	copy(upper[9:13], []byte{0, 0, 0, 0})
 
 	return lower, upper
+}
+
+func MakeResponse(code uint8, msg interface{}) []byte {
+	buf := bytes.NewBuffer(make([]byte, 0, 16))
+	buf.WriteByte(byte(code))
+	switch v := msg.(type) {
+	case string:
+		buf.Write([]byte(v))
+	case []byte:
+		buf.Write(v)
+	case byte:
+		buf.WriteByte(v)
+	}
+	return buf.Bytes()
 }

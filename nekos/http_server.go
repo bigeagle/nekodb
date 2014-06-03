@@ -35,7 +35,7 @@ func serveHTTP(addr string, port int) {
 
 	m.Get("/series/", func(r render.Render) {
 		s := getServer()
-		coll := make([]*nekoSeries, 0)
+		coll := make([]*nekolib.NekoSeriesInfo, 0)
 		for _, series := range s.collection.coll {
 			coll = append(coll, series)
 		}
@@ -60,6 +60,22 @@ func serveHTTP(addr string, port int) {
 		r.JSON(200, map[string]interface{}{
 			"peers": peers,
 		})
+	})
+
+	m.Get("/series/:name/meta", func(params martini.Params, r render.Render) {
+		s := getServer()
+		_, found := s.collection.getSeries(params["name"])
+		if !found {
+			r.JSON(404, map[string]interface{}{"msg": "Series Not Found"})
+			return
+		}
+
+		sm, err := getSeriesMeta(params["name"])
+		if err != nil {
+			r.JSON(500, map[string]interface{}{"msg": err.Error()})
+			return
+		}
+		r.JSON(200, *sm)
 	})
 
 	m.Get("/series/:name", func(req *http.Request, params martini.Params, r render.Render) {

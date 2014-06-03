@@ -26,26 +26,32 @@ import (
 	"github.com/bigeagle/nekodb/nekolib"
 )
 
-type nekoSeries struct {
+type peerSeriesInfo struct {
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+}
+
+type seriesMeta struct {
 	nekolib.NekoSeriesInfo
+	Backends []peerSeriesInfo `json:"backends"`
 }
 
 type nekoCollection struct {
 	m    sync.RWMutex
-	coll map[string]*nekoSeries
+	coll map[string]*nekolib.NekoSeriesInfo
 }
 
 func newNekoCollection() *nekoCollection {
 	c := new(nekoCollection)
-	c.coll = make(map[string]*nekoSeries)
+	c.coll = make(map[string]*nekolib.NekoSeriesInfo)
 	return c
 }
 
-func (c *nekoCollection) insertSeries_unsafe(series *nekoSeries) {
+func (c *nekoCollection) insertSeries_unsafe(series *nekolib.NekoSeriesInfo) {
 	c.coll[series.Name] = series
 }
 
-func (c *nekoCollection) insertSeries(series *nekoSeries) {
+func (c *nekoCollection) insertSeries(series *nekolib.NekoSeriesInfo) {
 	c.m.Lock()
 	defer c.m.Unlock()
 	c.insertSeries_unsafe(series)
@@ -57,7 +63,7 @@ func (c *nekoCollection) removeSeries(sname string) {
 	delete(c.coll, sname)
 }
 
-func (c *nekoCollection) getSeries(sname string) (*nekoSeries, bool) {
+func (c *nekoCollection) getSeries(sname string) (*nekolib.NekoSeriesInfo, bool) {
 	c.m.RLock()
 	defer c.m.RUnlock()
 	s, ok := c.coll[sname]

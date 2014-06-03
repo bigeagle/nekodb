@@ -127,9 +127,8 @@ func importSeries(sname string, sock *zmq.Socket) error {
 			msg, _ := psock.RecvBytes(0)
 			if uint8(msg[0]) != nekolib.REP_OK {
 				logger.Error("peer %s: %s", peer.Name, string(msg[1:]))
-			} else {
-				logger.Debug("peer %s: %s", peer.Name, string(msg[1:]))
 			}
+			// logger.Debug("peer %s: %s", peer.Name, string(msg[1:]))
 			return nil
 		})
 
@@ -174,26 +173,130 @@ func importSeries(sname string, sock *zmq.Socket) error {
 	return nil
 }
 
-func findByRange(reqHdr *nekolib.ReqFindByRangeHdr, sock *zmq.Socket) error {
-	recordChan := make(chan nekolib.SCNode, 256)
-	done := make(chan struct{})
-	go func() {
-		sock.SendBytes(
-			nekolib.MakeResponse(nekolib.REP_ACK, "Starting Query"),
-			zmq.SNDMORE,
-		)
-		for record := range recordChan {
-			sock.SendBytes(record.(*nekolib.NekodRecord).ToBytes(),
-				zmq.SNDMORE)
+func getRangeToChan(reqHdr *nekolib.ReqFindByRangeHdr, recordChan chan nekolib.SCNode) error {
+	s := getServer()
+	sortedChannel := nekolib.NewSortedChannel(16, recordChan)
+
+	visited := make(map[string]bool)
+	s.backends.ForEachSafe(func(n *nekoRingNode) {
+		sortedChannel.AddPublisher(n.RealName)
+	})
+
+	buf := bytes.NewBuffer(make([]byte, 0, 16))
+	buf.WriteByte(byte(nekolib.OP_FIND_RANGE))
+	buf.Write(reqHdr.ToBytes())
+	reqMsg := buf.Bytes()
+
+	s.backends.ForEachSafe(func(n *nekoRingNode) {
+		if _, found := visited[n.RealName]; !found {
+			visited[n.RealName] = true
+			go func() {
+				// logger.Debug(n.RealName)
+				n.Request(func(psock *zmq.Socket) error {
+					if _, err := psock.SendBytes(reqMsg, 0); err != nil {
+						logger.Error(err.Error())
+						return err
+					}
+					ack, _ := psock.RecvBytes(0)
+					if uint8(ack[0]) != nekolib.REP_ACK {
+						logger.Error("peer %s: %s", n.Name, string(ack[1:]))
+						return errors.New(string(ack[1:]))
+					}
+
+				READ_STREAM:
+					for more, _ := psock.GetRcvmore(); more; more, _ = psock.GetRcvmore() {
+						msg, err := psock.RecvBytes(0)
+						// logger.Debug("yes")
+						if err != nil {
+							logger.Error(err.Error())
+							return err
+						}
+
+						for buf := bytes.NewBuffer(msg); buf.Len() > 0; {
+							r := new(nekolib.NekodRecord)
+							if err := r.FromBytes(buf); err != nil {
+								if err == nekolib.EndOfStream {
+									break READ_STREAM
+								}
+								logger.Error(err.Error())
+								return err
+							}
+							// logger.Debug("%#v", r)
+							sortedChannel.Pub(n.RealName, r)
+						}
+					}
+					msg, _ := psock.RecvBytes(0)
+					sortedChannel.RemovePublisher(n.RealName)
+					if uint8(msg[0]) != nekolib.REP_OK {
+						logger.Error("peer %s", n.Name)
+						return errors.New(string(msg[1:]))
+					} else {
+						logger.Debug("peer %s: %s", n.Name, string(msg[1:]))
+					}
+					return nil
+				})
+			}()
 		}
-		sock.SendBytes([]byte{0, 0}, zmq.SNDMORE)
-		logger.Debug("Sending Stream End")
-		close(done)
-	}()
+	})
 
-	getRangeToChan(reqHdr, recordChan)
-
-	<-done
-	logger.Debug("Done")
 	return nil
+}
+
+func getSeriesMeta(sname string) (*seriesMeta, error) {
+
+	s := getServer()
+	sinfo, found := s.collection.getSeries(sname)
+	if !found {
+		return nil, fmt.Errorf("series %s not found", sname)
+	}
+
+	buf := bytes.NewBuffer(make([]byte, 0, 8))
+	buf.WriteByte(byte(nekolib.OP_SERIES_INFO))
+	reqHdr := &nekolib.ReqSeriesMetaHdr{
+		SeriesName: sname,
+	}
+	buf.Write(reqHdr.ToBytes())
+	reqMsg := buf.Bytes()
+
+	var wg sync.WaitGroup
+	var mutex sync.Mutex
+	psinfo := make([]peerSeriesInfo, 0)
+	visited := make(map[string]bool)
+	s.backends.ForEachSafe(func(n *nekoRingNode) {
+		if _, found := visited[n.RealName]; found {
+			return
+		}
+		visited[n.RealName] = true
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			n.Request(func(psock *zmq.Socket) error {
+				if _, err := psock.SendBytes(reqMsg, 0); err != nil {
+					logger.Error(err.Error())
+					return err
+				}
+				msg, err := psock.RecvBytes(0)
+				if err != nil {
+					logger.Error(err.Error())
+					return err
+				}
+				if uint8(msg[0]) != nekolib.REP_OK {
+					logger.Error("peer %s", n.Name)
+					return errors.New(string(msg[1:]))
+				}
+				logger.Debug("peer %s: Done", n.Name)
+
+				ps := new(nekolib.NekodSeriesInfo)
+				ps.FromBytes(bytes.NewBuffer(msg[1:]))
+				mutex.Lock()
+				defer mutex.Unlock()
+				psinfo = append(psinfo, peerSeriesInfo{n.RealName, int(ps.Count)})
+				return nil
+			})
+		}()
+	})
+
+	wg.Wait()
+
+	return &seriesMeta{*sinfo, psinfo}, nil
 }
