@@ -141,9 +141,15 @@ $(document).ready(function(){
         })
     };
     var handle_plot = function(){
-        $.get('/template/plot.mustache', function(template){
+        $.get('/template/plot-panel.mustache', function(template){
             var rendered = Mustache.render(template, nekosInfo);
             $('#main').html(rendered);
+            var log_template;
+            $.get('/template/query-log.mustache', function(template){
+                log_template = template;
+                Mustache.parse(log_template);
+            })
+
             $("#series-select").html();
             for(var i=0; i < nekosInfo.series.length; i++) {
                 $('#series-select').append("<option>"+nekosInfo.series[i].name+"</option>");
@@ -167,6 +173,7 @@ $(document).ready(function(){
                 }
             });
 
+            var qNo = 0;
             $("#draw").click(function(){
                 var plot_data = [];
                 var series_list = [],
@@ -177,6 +184,7 @@ $(document).ready(function(){
                 });
 
                 var defered = series_list.map(function(e){
+                    qNo++;
                     var url = api_root + "/series/" + e + "?" + $.param({start: start, end: end});
                     return $.getJSON(url, function(r){
                         plot_data.push(r);
@@ -187,7 +195,21 @@ $(document).ready(function(){
                                 return -1;
                             return 0;
                         });
-                        console.log(r.label);
+                        var profile = $.extend({}, r.benchmark, {id: qNo, series_name: e});
+                        profile.peers = [];
+                        profile.total_time = profile.total_time / 1000000;
+                        for (p in profile.bench_peers) {
+                            profile.peers.push({
+                                name: p,
+                                count: profile.bench_peers[p].count,
+                                duration: profile.bench_peers[p].duration/1000000,
+                                full_duration: profile.bench_peers[p].full_duration/1000000
+                            });
+                        }
+                        console.log(profile);
+                        var rendered = Mustache.render(log_template, profile);
+                        $("#query-logs").append(rendered);
+                        $('.collapse').collapse()
                     });
                 });
 
@@ -196,6 +218,10 @@ $(document).ready(function(){
                     plot.setupGrid();
                     plot.draw();
                 });
+            });
+
+            $("#query-logs").on('click', '.panel-heading.collapse', function(){
+                $(this).parent().find('.panel-collapse').collapse('toggle');
             });
 
         });
