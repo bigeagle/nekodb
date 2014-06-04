@@ -19,7 +19,9 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/bigeagle/nekodb/nekolib"
 	zmq "github.com/pebbe/zmq4"
@@ -167,12 +169,13 @@ func ReqGetRange(w *nekodWorker, packBytes []byte) error {
 	end, _ := nekolib.Bytes2Time(reqHdr.EndTs)
 	logger.Debug("Start Querying Series: %s from %v to %v", series.Name, start, end)
 
+	bench_start := time.Now()
 	w.sock.SendBytes(nekolib.MakeResponse(nekolib.REP_ACK, "starting"), zmq.SNDMORE)
 
 	blk_lower := int64(1<<63 - 1)
 	blk_upper := int64(-1 << 63)
 	buf = bytes.NewBuffer(make([]byte, 0, 256))
-
+	count := 0
 	series.RangeOp(reqHdr.StartTs, reqHdr.EndTs, reqHdr.Priority, func(key, value []byte) {
 		r := &nekolib.NekodRecord{key, value}
 		ts := nekolib.Bytes2TimeSec(key)
@@ -185,17 +188,25 @@ func ReqGetRange(w *nekodWorker, packBytes []byte) error {
 			blk_lower, blk_upper = nekolib.TsBoundary(ts, series.FragLevel)
 		}
 		buf.Write(r.ToBytes())
+		count += 1
 	})
 
 	if buf.Len() > 0 {
 		w.sock.SendBytes(buf.Bytes(), zmq.SNDMORE)
 	}
 
+	bench_duration := time.Since(bench_start)
+	response := map[string]interface{}{
+		"peer":     w.srv.cfg.Name,
+		"count":    int(count),
+		"duration": int(bench_duration.Nanoseconds()),
+	}
+	rtext, _ := json.Marshal(response)
 	w.sock.SendBytes([]byte{0, 0}, zmq.SNDMORE)
-	logger.Debug("Done")
 	w.sock.SendBytes(
-		nekolib.MakeResponse(nekolib.REP_OK, "Done"), 0)
+		nekolib.MakeResponse(nekolib.REP_OK, rtext), 0)
 
+	logger.Debug(string(rtext))
 	return nil
 }
 

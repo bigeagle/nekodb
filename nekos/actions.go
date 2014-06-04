@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/bigeagle/nekodb/nekolib"
 	zmq "github.com/pebbe/zmq4"
@@ -173,9 +174,9 @@ func importSeries(sname string, sock *zmq.Socket) error {
 	return nil
 }
 
-func getRangeToChan(reqHdr *nekolib.ReqFindByRangeHdr, recordChan chan nekolib.SCNode) error {
+func getRangeToChan(reqHdr *nekolib.ReqFindByRangeHdr, recordChan chan nekolib.SCNode, msgChan chan map[string]interface{}) error {
 	s := getServer()
-	sortedChannel := nekolib.NewSortedChannel(16, recordChan)
+	sortedChannel := nekolib.NewSortedChannel(128, recordChan)
 
 	visited := make(map[string]bool)
 	s.backends.ForEachSafe(func(n *nekoRingNode) {
@@ -193,6 +194,7 @@ func getRangeToChan(reqHdr *nekolib.ReqFindByRangeHdr, recordChan chan nekolib.S
 			go func() {
 				// logger.Debug(n.RealName)
 				n.Request(func(psock *zmq.Socket) error {
+					bench_start := time.Now()
 					if _, err := psock.SendBytes(reqMsg, 0); err != nil {
 						logger.Error(err.Error())
 						return err
@@ -230,9 +232,15 @@ func getRangeToChan(reqHdr *nekolib.ReqFindByRangeHdr, recordChan chan nekolib.S
 					if uint8(msg[0]) != nekolib.REP_OK {
 						logger.Error("peer %s", n.Name)
 						return errors.New(string(msg[1:]))
-					} else {
-						logger.Debug("peer %s: %s", n.Name, string(msg[1:]))
 					}
+					if msgChan != nil {
+						var r map[string]interface{}
+						if err := json.Unmarshal(msg, &r); err == nil {
+							r["full_duration"] = time.Since(bench_start).Nanoseconds()
+							msgChan <- r
+						}
+					}
+					// logger.Debug("peer %s: %s", n.Name, string(msg[1:]))
 					return nil
 				})
 			}()

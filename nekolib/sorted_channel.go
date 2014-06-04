@@ -77,12 +77,12 @@ func (b *SortedChannel) RemovePublisher(name string) {
 
 func (b *SortedChannel) Pub(name string, n SCNode) {
 	b.mutex.Lock()
-	defer b.mutex.Unlock()
 	b.buffers[name] = append(b.buffers[name], n)
 
 	if len(b.buffers[name]) >= b.flushSize {
 		b.flush(name)
 	}
+	b.mutex.Unlock()
 }
 
 func (b *SortedChannel) flush(name string) {

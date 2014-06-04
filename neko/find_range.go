@@ -19,7 +19,9 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/bigeagle/nekodb/nekolib"
@@ -89,9 +91,23 @@ READ_STREAM:
 		return
 	}
 	if uint8(rep[0]) != nekolib.REP_OK {
-		fmt.Println("Error", string(rep[1:]))
+		fmt.Fprintln(os.Stderr, "Error", string(rep[1:]))
 	} else {
-		fmt.Println(string(rep[1:]))
+		bench := map[string]interface{}{}
+		json.Unmarshal(rep[1:], &bench)
+		fmt.Fprintln(os.Stderr, "Profile")
+		fmt.Fprintln(os.Stderr, "Total Time: ",
+			time.Duration(int(bench["total_time"].(float64)))*time.Nanosecond)
+
+		for peer, ipbench := range bench["bench_peers"].(map[string]interface{}) {
+			fmt.Fprintf(os.Stderr, "%s: ", peer)
+			pbench := ipbench.(map[string]interface{})
+			fmt.Fprintf(os.Stderr, "count: %d, scan_time: %s, query_time: %s\n",
+				int(pbench["count"].(float64)),
+				time.Duration(int(pbench["duration"].(float64)))*time.Nanosecond,
+				time.Duration(int(pbench["full_duration"].(float64)))*time.Nanosecond,
+			)
+		}
 	}
 
 }
