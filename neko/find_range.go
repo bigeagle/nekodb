@@ -60,7 +60,7 @@ func commandFindDataPoints(c *cli.Context) {
 		fmt.Println("Error", string(rep[1:]))
 		return
 	}
-
+	count := 0
 READ_STREAM:
 	for more, _ := s.GetRcvmore(); more; more, _ = s.GetRcvmore() {
 		msg, err := s.RecvBytes(0)
@@ -81,6 +81,7 @@ READ_STREAM:
 
 			ts, _ := nekolib.Bytes2Time(r.Ts)
 			fmt.Printf("%s, %s\n", ts.Format(nekolib.ISO8601), string(r.Value))
+			count++
 		}
 
 	}
@@ -97,7 +98,9 @@ READ_STREAM:
 		json.Unmarshal(rep[1:], &bench)
 		fmt.Fprintln(os.Stderr, "Profile")
 		fmt.Fprintln(os.Stderr, "Total Time: ",
-			time.Duration(int(bench["total_time"].(float64)))*time.Nanosecond)
+			time.Duration(int(bench["total_time"].(float64)))*time.Nanosecond,
+			"Total Count: ", count,
+		)
 
 		for peer, ipbench := range bench["bench_peers"].(map[string]interface{}) {
 			fmt.Fprintf(os.Stderr, "%s: ", peer)

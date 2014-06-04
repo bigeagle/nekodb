@@ -198,6 +198,7 @@ $(document).ready(function(){
                         var profile = $.extend({}, r.benchmark, {id: qNo, series_name: e});
                         profile.peers = [];
                         profile.total_time = profile.total_time / 1000000;
+                        profile.total_count = r.data.length;
                         for (p in profile.bench_peers) {
                             profile.peers.push({
                                 name: p,

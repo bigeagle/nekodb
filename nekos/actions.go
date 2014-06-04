@@ -292,7 +292,7 @@ func getSeriesMeta(sname string) (*seriesMeta, error) {
 					logger.Error("peer %s", n.Name)
 					return errors.New(string(msg[1:]))
 				}
-				logger.Debug("peer %s: Done", n.Name)
+				// logger.Debug("peer %s: Done", n.Name)
 
 				ps := new(nekolib.NekodSeriesInfo)
 				ps.FromBytes(bytes.NewBuffer(msg[1:]))
