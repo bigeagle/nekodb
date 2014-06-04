@@ -172,22 +172,15 @@ func ReqGetRange(w *nekodWorker, packBytes []byte) error {
 	bench_start := time.Now()
 	w.sock.SendBytes(nekolib.MakeResponse(nekolib.REP_ACK, "starting"), zmq.SNDMORE)
 
-	blk_lower := int64(1<<63 - 1)
-	blk_upper := int64(-1 << 63)
 	buf = bytes.NewBuffer(make([]byte, 0, 256))
 	count := 0
 	series.RangeOp(reqHdr.StartTs, reqHdr.EndTs, reqHdr.Priority, func(key, value []byte) {
 		r := &nekolib.NekodRecord{key, value}
-		ts := nekolib.Bytes2TimeSec(key)
-
-		if !(ts < blk_upper && ts >= blk_lower) {
-			if buf.Len() > 0 {
-				w.sock.SendBytes(buf.Bytes(), zmq.SNDMORE)
-			}
-			buf = bytes.NewBuffer(make([]byte, 0, 256))
-			blk_lower, blk_upper = nekolib.TsBoundary(ts, series.FragLevel)
-		}
 		buf.Write(r.ToBytes())
+		if buf.Len() > 1024 {
+			w.sock.SendBytes(buf.Bytes(), zmq.SNDMORE)
+			buf = bytes.NewBuffer(make([]byte, 0, 256))
+		}
 		count += 1
 	})
 

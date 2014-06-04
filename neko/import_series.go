@@ -53,6 +53,7 @@ func commandImportSeries(c *cli.Context) {
 	defer fi.Close()
 
 	s := getSocket(srvHost, srvPort)
+	bench_start := time.Now()
 
 	reqHdr := &nekolib.ReqImportSeriesHdr{
 		SeriesName: seriesName,
@@ -91,5 +92,5 @@ func commandImportSeries(c *cli.Context) {
 
 	b, _ := s.Recv(0)
 	fmt.Printf("%v\n", b)
-
+	fmt.Fprintln(os.Stderr, time.Since(bench_start))
 }
