@@ -35,12 +35,14 @@ func serveHTTP(addr string, port int) {
 
 	m.Get("/series/", func(r render.Render) {
 		s := getServer()
-		coll := make([]*nekolib.NekoSeriesInfo, 0)
-		for _, series := range s.collection.coll {
-			coll = append(coll, series)
+		list := []*nekolib.NekoSeriesMeta{}
+		for _, sinfo := range s.collection.coll {
+			smeta, _ := getSeriesMeta(sinfo.Name)
+			list = append(list, smeta)
 		}
+
 		r.JSON(200, map[string]interface{}{
-			"series": coll,
+			"series": list,
 		})
 	})
 

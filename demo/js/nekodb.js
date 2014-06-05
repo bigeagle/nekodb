@@ -83,8 +83,8 @@ $(document).ready(function(){
                         .text(function(d) { return d.data.name; });
                 };
 
-                var drawCountRing = function(seriesName) {
-                    var width = $('#series-count-'+seriesName).width(),
+                var drawCountRing = function(series) {
+                    var width = $('#series-count-'+series.name).width(),
                         height = Math.floor(width*0.8),
                         radius = Math.floor(height/3);
 
@@ -96,50 +96,45 @@ $(document).ready(function(){
                         .sort(function(a, b) {return a.count > b.count;})
                         .value(function(d) { return d.count; });
 
-                    var svg = d3.select("#series-count-"+seriesName).append("svg")
+                    var svg = d3.select("#series-count-"+series.name).append("svg")
                         .attr("width", width)
                         .attr("height", height)
                         .append("g")
                         .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
 
-                    d3.json(api_root+"/series/"+seriesName+"/meta", function(error, j){
-                        var data = j.backends;
+                    var data = series.backends;
 
-                        var g = svg.selectAll(".arc")
-                                .data(pie(data))
-                                .enter().append("g")
-                                .attr("class", "arc");
+                    var g = svg.selectAll(".arc")
+                            .data(pie(data))
+                            .enter().append("g")
+                            .attr("class", "arc");
 
-                        g.append("path")
-                            .attr("d", arc)
-                            .style("fill", function(d) { return colors[d.data.name]; });
+                    g.append("path")
+                        .attr("d", arc)
+                        .style("fill", function(d) { return colors[d.data.name]; });
 
+                    g.append("text")
+                        .attr("transform", function(d) {
+                            var c = arc.centroid(d),
+                            x = c[0],
+                            y = c[1],
+                            // pythagorean theorem for hypotenuse
+                            h = Math.sqrt(x*x + y*y);
+                            return "translate(" + (x/h * radius/2) +  ',' +
+                                (y/h * radius/2) +  ")";
+                        })
+                        .attr("dy", ".5em")
+                        .style("text-anchor", function(d){
+                            return (d.endAngle + d.startAngle)/2 > Math.PI ? "end" : "start";
+                        })
+                        .text(function(d) { return d.data.name; });
 
-                        g.append("text")
-                            .attr("transform", function(d) {
-                                var c = arc.centroid(d),
-                                x = c[0],
-                                y = c[1],
-                                // pythagorean theorem for hypotenuse
-                                h = Math.sqrt(x*x + y*y);
-                                return "translate(" + (x/h * radius/2) +  ',' +
-                                    (y/h * radius/2) +  ")";
-                            })
-                            .attr("dy", ".5em")
-                            .style("text-anchor", function(d){
-                                return (d.endAngle + d.startAngle)/2 > Math.PI ? "end" : "start";
-                            })
-                            .text(function(d) { return d.data.name; });
-
-                        var tcount = data.map(function(d){return d.count;})
-                                        .reduce(function(a, b){return a + b;});
-                        $("#series-meta-"+seriesName).find("td[data-attr='count']").text(tcount);
-                    });
+                    $("#series-meta-"+series.name).find("td[data-attr='count']").text(series.count);
 
                 }
                 drawHashRing();
                 nekosInfo.series.forEach(function(s){
-                    drawCountRing(s.name);
+                    drawCountRing(s);
                 });
             });
         })

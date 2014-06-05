@@ -250,7 +250,7 @@ func getRangeToChan(reqHdr *nekolib.ReqFindByRangeHdr, recordChan chan nekolib.S
 	return nil
 }
 
-func getSeriesMeta(sname string) (*seriesMeta, error) {
+func getSeriesMeta(sname string) (*nekolib.NekoSeriesMeta, error) {
 
 	s := getServer()
 	sinfo, found := s.collection.getSeries(sname)
@@ -268,8 +268,9 @@ func getSeriesMeta(sname string) (*seriesMeta, error) {
 
 	var wg sync.WaitGroup
 	var mutex sync.Mutex
-	psinfo := make([]peerSeriesInfo, 0)
+	psinfo := []nekolib.NekodSeriesInfo{}
 	visited := make(map[string]bool)
+
 	s.backends.ForEachSafe(func(n *nekoRingNode) {
 		if _, found := visited[n.RealName]; found {
 			return
@@ -288,17 +289,18 @@ func getSeriesMeta(sname string) (*seriesMeta, error) {
 					logger.Error(err.Error())
 					return err
 				}
+
 				if uint8(msg[0]) != nekolib.REP_OK {
 					logger.Error("peer %s", n.Name)
 					return errors.New(string(msg[1:]))
 				}
 				// logger.Debug("peer %s: Done", n.Name)
 
-				ps := new(nekolib.NekodSeriesInfo)
-				ps.FromBytes(bytes.NewBuffer(msg[1:]))
+				var ps nekolib.NekodSeriesInfo
+				json.Unmarshal(msg[1:], &ps)
 				mutex.Lock()
 				defer mutex.Unlock()
-				psinfo = append(psinfo, peerSeriesInfo{n.RealName, int(ps.Count)})
+				psinfo = append(psinfo, ps)
 				return nil
 			})
 		}()
@@ -306,5 +308,10 @@ func getSeriesMeta(sname string) (*seriesMeta, error) {
 
 	wg.Wait()
 
-	return &seriesMeta{*sinfo, psinfo}, nil
+	total_count := 0
+	for _, pi := range psinfo {
+		total_count += pi.Count
+	}
+
+	return &nekolib.NekoSeriesMeta{*sinfo, total_count, psinfo}, nil
 }

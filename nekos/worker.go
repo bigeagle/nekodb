@@ -32,6 +32,7 @@ var ReqHandlerMap = map[uint8](func(*nekoWorker, []byte) ([]byte, error)){
 	nekolib.OP_NEW_SERIES:    ReqNewSeries,
 	nekolib.OP_IMPORT_SERIES: ReqImportSeries,
 	nekolib.OP_FIND_RANGE:    ReqFindByRange,
+	nekolib.OP_LIST_SERIES:   ReqListSeries,
 }
 
 type nekoWorker struct {
@@ -146,4 +147,17 @@ func ReqFindByRange(w *nekoWorker, packBytes []byte) ([]byte, error) {
 
 	<-done
 	return json.Marshal(bench)
+}
+
+func ReqListSeries(w *nekoWorker, packBytes []byte) ([]byte, error) {
+
+	s := getServer()
+	list := []*nekolib.NekoSeriesMeta{}
+	for _, sinfo := range s.collection.coll {
+		smeta, _ := getSeriesMeta(sinfo.Name)
+		list = append(list, smeta)
+	}
+
+	j, _ := json.Marshal(list)
+	return j, nil
 }

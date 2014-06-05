@@ -39,6 +39,12 @@ func main() {
 	}
 	app.Commands = []cli.Command{
 		{
+			Name:   "list",
+			Usage:  "List Series",
+			Flags:  []cli.Flag{},
+			Action: commandListSeries,
+		},
+		{
 			Name:  "import",
 			Usage: "Import ts file to nekodb",
 			Flags: []cli.Flag{

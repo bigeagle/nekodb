@@ -109,21 +109,6 @@ func (r *NekodRecord) Key() int64 {
 	return t.UnixNano()
 }
 
-type NekodSeriesInfo struct {
-	Count int64
-}
-
-func (r *NekodSeriesInfo) ToBytes() []byte {
-	buf := bytes.NewBuffer(make([]byte, 0, 8))
-	binary.Write(buf, binary.BigEndian, r.Count)
-	return buf.Bytes()
-}
-
-func (r *NekodSeriesInfo) FromBytes(buf *bytes.Buffer) error {
-	binary.Read(buf, binary.BigEndian, &r.Count)
-	return nil
-}
-
 type NekodPeerInfo struct {
 	Name     string `json:"name"`
 	RealName string `json:"real_name"`
@@ -173,4 +158,18 @@ func (ns *NekoSeriesInfo) FromBytes(buf *bytes.Buffer) error {
 		return err
 	}
 	return nil
+}
+
+type NekoSeriesMeta struct {
+	NekoSeriesInfo
+	// Record Counts
+	Count    int               `json:"count"`
+	Backends []NekodSeriesInfo `json:"backends"`
+}
+
+type NekodSeriesInfo struct {
+	// Peer Name
+	Name string `json:"name"`
+	// Record Count
+	Count int `json:"count"`
 }

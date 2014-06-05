@@ -97,11 +97,13 @@ func ReqSeriesMeta(w *nekodWorker, packBytes []byte) error {
 
 	count, _ := series.Count()
 	sm := nekolib.NekodSeriesInfo{
-		Count: int64(count),
+		Name:  w.srv.cfg.Name,
+		Count: count,
 	}
-	buf := bytes.NewBuffer(make([]byte, 0, 9))
+	j, _ := json.Marshal(sm)
+	buf := bytes.NewBuffer(make([]byte, 0, 16))
 	buf.WriteByte(byte(nekolib.REP_OK))
-	buf.Write(sm.ToBytes())
+	buf.Write(j)
 	w.sock.SendBytes(buf.Bytes(), 0)
 
 	return nil

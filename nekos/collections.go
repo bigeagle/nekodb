@@ -26,16 +26,6 @@ import (
 	"github.com/bigeagle/nekodb/nekolib"
 )
 
-type peerSeriesInfo struct {
-	Name  string `json:"name"`
-	Count int    `json:"count"`
-}
-
-type seriesMeta struct {
-	nekolib.NekoSeriesInfo
-	Backends []peerSeriesInfo `json:"backends"`
-}
-
 type nekoCollection struct {
 	m    sync.RWMutex
 	coll map[string]*nekolib.NekoSeriesInfo
