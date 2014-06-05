@@ -58,14 +58,16 @@
     <thead>
       <th>Name</th>
       <th>Id</th>
+      <th>Count</th>
       <th>Frag Level</th>
     </thead>
 
     <tbody>
     {{#series}}
-    <tr>
+    <tr id="series-meta-{{name}}">
       <td>{{name}}</td>
       <td>{{id}}</td>
+      <td data-attr="count"></td>
       <td>{{frag_level}}</td>
     </tr>
     {{/series}}

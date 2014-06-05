@@ -130,6 +130,10 @@ $(document).ready(function(){
                                 return (d.endAngle + d.startAngle)/2 > Math.PI ? "end" : "start";
                             })
                             .text(function(d) { return d.data.name; });
+
+                        var tcount = data.map(function(d){return d.count;})
+                                        .reduce(function(a, b){return a + b;});
+                        $("#series-meta-"+seriesName).find("td[data-attr='count']").text(tcount);
                     });
 
                 }
@@ -209,7 +213,7 @@ $(document).ready(function(){
                         }
                         console.log(profile);
                         var rendered = Mustache.render(log_template, profile);
-                        $("#query-logs").append(rendered);
+                        $("#query-logs").prepend(rendered);
                         $('.collapse').collapse()
                     });
                 });
