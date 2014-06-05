@@ -18,32 +18,38 @@
 package main
 
 import (
-    "fmt"
-    // "os"
-    // "encoding/binary"
-    "bytes"
-    "github.com/codegangsta/cli"
-    "github.com/bigeagle/nekodb/nekolib"
+	"fmt"
+	// "os"
+	// "encoding/binary"
+	"bytes"
+
+	"github.com/bigeagle/nekodb/nekolib"
+	"github.com/codegangsta/cli"
 )
 
 func commandNewSeries(c *cli.Context) {
-    fmt.Printf("Nekos: %s:%d\n", srvHost, srvPort)
-    s := getSocket(srvHost, srvPort)
+	fmt.Printf("Nekos: %s:%d\n", srvHost, srvPort)
+	s := getSocket(srvHost, srvPort)
 
-    series := nekolib.NekoSeriesInfo{
-        Name: c.String("name"),
-        Id: c.String("id"),
-        FragLevel: c.Int("level"),
-    }
-    fmt.Println(series)
-    buf := bytes.NewBuffer(make([]byte, 0, 16))
-    buf.WriteByte(byte(nekolib.OP_NEW_SERIES))
-    buf.Write(series.ToBytes())
-    fmt.Println(buf.Bytes())
-    s.SendBytes(buf.Bytes(), 0)
+	series := nekolib.NekoSeriesInfo{
+		Name: c.String("name"),
+		Id: func() string {
+			id := c.String("id")
+			if len(id) > 0 {
+				return id
+			} else {
+				return c.String("name")
+			}
+		}(),
+		FragLevel: c.Int("level"),
+	}
+	fmt.Printf("%#v\n", series)
+	buf := bytes.NewBuffer(make([]byte, 0, 16))
+	buf.WriteByte(byte(nekolib.OP_NEW_SERIES))
+	buf.Write(series.ToBytes())
+	// fmt.Println(buf.Bytes())
+	s.SendBytes(buf.Bytes(), 0)
 
-    b, _ := s.Recv(0)
-    fmt.Printf("%v\n", b)
+	b, _ := s.Recv(0)
+	fmt.Printf("%v\n", b)
 }
-
-

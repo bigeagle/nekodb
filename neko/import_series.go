@@ -34,7 +34,6 @@ import (
 )
 
 func commandImportSeries(c *cli.Context) {
-	fmt.Printf("Nekos: %s:%d\n", srvHost, srvPort)
 	var err error
 
 	seriesName := c.String("name")
@@ -82,9 +81,7 @@ func commandImportSeries(c *cli.Context) {
 		}
 		s.SendBytes(record.ToBytes(), zmq.SNDMORE)
 	}
-	if err == io.EOF || err == nil {
-		fmt.Println("EOF")
-	} else {
+	if !(err == io.EOF || err == nil) {
 		fmt.Println(err.Error())
 	}
 
