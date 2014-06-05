@@ -92,7 +92,9 @@ func importSeries(sname string, sock *zmq.Socket) error {
 	if !found {
 		return errors.New("Series Not Found")
 	}
+
 	var wg sync.WaitGroup
+
 	// flush block to coresponding peer
 	flushBlock := func(block []*nekolib.NekodRecord, lower, upper int64) {
 		defer wg.Done()
@@ -138,7 +140,8 @@ func importSeries(sname string, sock *zmq.Socket) error {
 	blk_lower := int64(1<<63 - 1)
 	blk_upper := int64(-1 << 63)
 	var record_blk []*nekolib.NekodRecord
-
+	// count := 0
+	// count2 := 0
 	for more, _ := sock.GetRcvmore(); more; more, _ = sock.GetRcvmore() {
 		msg, err := sock.RecvBytes(0)
 		if err != nil {
@@ -158,19 +161,23 @@ func importSeries(sname string, sock *zmq.Socket) error {
 
 			ts := nekolib.Bytes2TimeSec(r.Ts)
 			if !(ts < blk_upper && ts >= blk_lower) {
+				// count2 += len(record_blk)
+				// logger.Debug("%d, %d", count, count2)
 				wg.Add(1)
 				go flushBlock(record_blk, blk_lower, blk_upper)
 				// Reset Block Cache and Time Range
 				record_blk = make([]*nekolib.NekodRecord, 0, 32)
 				blk_lower, blk_upper = nekolib.TsBoundary(ts, sinfo.FragLevel)
-				record_blk = append(record_blk, r)
 			}
 			record_blk = append(record_blk, r)
+			// count += 1
 		}
 	}
+
 	wg.Add(1)
 	flushBlock(record_blk, blk_lower, blk_upper)
 	wg.Wait()
+
 	return nil
 }
 

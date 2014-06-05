@@ -155,7 +155,11 @@ func (s *Series) Count() (int, error) {
 		return -1, err
 	}
 	defer bcount.Free()
-	return int(binary.BigEndian.Uint64(bcount.Data())), nil
+	if bcount.Size() == 8 {
+		return int(binary.BigEndian.Uint64(bcount.Data())), nil
+	} else {
+		return 0, nil
+	}
 }
 
 func (s *Series) marshalKey(key []byte, priority uint8) []byte {
