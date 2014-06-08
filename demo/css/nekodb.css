@@ -38,3 +38,16 @@ h3 {
   font-size: .9em;
   margin-right: 1em;
 }
+
+
+.chart-container .axis path,
+.chart-container .axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.chart-container .line {
+  fill: none;
+  stroke-width: 2.5px;
+}

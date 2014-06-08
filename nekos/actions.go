@@ -242,9 +242,11 @@ func getRangeToChan(reqHdr *nekolib.ReqFindByRangeHdr, recordChan chan nekolib.S
 					}
 					if msgChan != nil {
 						var r map[string]interface{}
-						if err := json.Unmarshal(msg, &r); err == nil {
+						if err := json.Unmarshal(msg[1:], &r); err == nil {
 							r["full_duration"] = time.Since(bench_start).Nanoseconds()
 							msgChan <- r
+						} else {
+							logger.Error(err.Error())
 						}
 					}
 					// logger.Debug("peer %s: %s", n.Name, string(msg[1:]))

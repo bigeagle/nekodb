@@ -236,6 +236,9 @@ $(document).ready(function(){
             } else {
                 handle_plot();
             }
+        },
+        '/benchmark': function(){
+            $.getScript("/js/benchmark.js");
         }
     };
 
